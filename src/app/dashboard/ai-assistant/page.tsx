@@ -6,12 +6,10 @@ import { PageHeader } from '@/components/shared/page-header'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { aiResponses } from '@/data/ai-responses'
 import { 
   Send, Bot, User, Copy, RotateCcw, 
   Sparkles, MessageSquare, Lightbulb, 
-  TrendingUp, AlertCircle, Check 
+  TrendingUp, AlertCircle, Check, ExternalLink
 } from 'lucide-react'
 
 import ReactMarkdown from 'react-markdown'
@@ -22,6 +20,7 @@ type Message = {
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  sources?: string[]
 }
 
 const suggestedPrompts = [
@@ -31,23 +30,46 @@ const suggestedPrompts = [
   { label: "What vehicles need maintenance?", icon: MessageSquare },
 ]
 
+// Call the real backend API; fall back to a graceful error message
+async function sendToAPI(
+  message: string,
+  history: { role: string; content: string }[]
+): Promise<{ reply: string; sources: string[] }> {
+  const response = await fetch('/api/v1/chat/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, history }),
+  })
+  if (!response.ok) throw new Error(`API error: ${response.status}`)
+  return response.json()
+}
+
 export default function AiAssistantPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
-  const [isStreaming, setIsStreaming] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  // Track whether backend is reachable (for graceful degradation UI)
+  const [backendOnline, setBackendOnline] = useState<boolean | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const { scrollYProgress } = useScroll({ container: scrollRef })
   const scaleY = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 })
   const ballTop = useTransform(scaleY, [0, 1], ["0%", "100%"])
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom when messages update
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
   }, [messages])
+
+  // Check backend health on mount
+  useEffect(() => {
+    fetch('/api/v1/../health')
+      .then(r => r.ok ? setBackendOnline(true) : setBackendOnline(false))
+      .catch(() => setBackendOnline(false))
+  }, [])
 
   const copyToClipboard = (id: string, text: string) => {
     navigator.clipboard.writeText(text)
@@ -56,7 +78,7 @@ export default function AiAssistantPage() {
   }
 
   const handleSend = async (text: string) => {
-    if (!text.trim() || isStreaming) return
+    if (!text.trim() || isLoading) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -67,43 +89,37 @@ export default function AiAssistantPage() {
 
     setMessages(prev => [...prev, userMessage])
     setInput('')
-    setIsStreaming(true)
+    setIsLoading(true)
 
-    // Determine mock response based on keyword matching
-    const lowerText = text.toLowerCase()
-    let responseText = aiResponses['default']
-    if (lowerText.includes('performance') || lowerText.includes('today')) responseText = aiResponses['fleet performance']
-    else if (lowerText.includes('rating') || lowerText.includes('worst')) responseText = aiResponses['lowest ratings']
-    else if (lowerText.includes('revenue') || lowerText.includes('predict')) responseText = aiResponses['predict revenue']
-    else if (lowerText.includes('maintenance') || lowerText.includes('service')) responseText = aiResponses['maintenance']
+    // Build history from existing messages for context
+    const history = messages.map(m => ({ role: m.role, content: m.content }))
 
-    // Add empty assistant message to stream into
+    // Add placeholder assistant message
     const assistantId = (Date.now() + 1).toString()
     setMessages(prev => [...prev, {
       id: assistantId,
       role: 'assistant',
       content: '',
-      timestamp: new Date()
+      timestamp: new Date(),
+      sources: [],
     }])
 
-    // Simulate streaming effect
-    let i = 0
-    const interval = setInterval(() => {
-      setMessages(prev => {
-        const newMessages = [...prev]
-        const lastMsg = newMessages[newMessages.length - 1]
-        if (lastMsg.id === assistantId) {
-          lastMsg.content = responseText.slice(0, i)
-        }
-        return newMessages
-      })
-      i++
-      
-      if (i > responseText.length) {
-        clearInterval(interval)
-        setIsStreaming(false)
-      }
-    }, 15) // Adjust speed here
+    try {
+      const { reply, sources } = await sendToAPI(text, history)
+      // Replace placeholder with real reply
+      setMessages(prev => prev.map(m =>
+        m.id === assistantId ? { ...m, content: reply, sources: sources ?? [] } : m
+      ))
+    } catch {
+      // Graceful fallback — never leave empty message
+      setMessages(prev => prev.map(m =>
+        m.id === assistantId
+          ? { ...m, content: "I couldn't connect to the AI service. Make sure the backend is running at `localhost:8000`." }
+          : m
+      ))
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -120,13 +136,27 @@ export default function AiAssistantPage() {
                Ask questions about your fleet, predict revenue, or get maintenance insights.
             </p>
          </div>
-         <Button variant="outline" size="sm" onClick={() => setMessages([])} className="rounded-xl border-[var(--border)] h-9 text-xs shadow-sm hover:shadow-md transition-shadow">
-            <RotateCcw className="mr-2 h-3.5 w-3.5" /> Reset Context
-         </Button>
+         <div className="flex items-center gap-3">
+            {/* Backend status indicator */}
+            {backendOnline !== null && (
+              <span className={cn(
+                'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border',
+                backendOnline 
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
+                  : 'bg-amber-50 text-amber-700 border-amber-100'
+              )}>
+                <span className={cn('h-1.5 w-1.5 rounded-full', backendOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500')} />
+                {backendOnline ? 'AI Connected' : 'Backend Offline'}
+              </span>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setMessages([])} className="rounded-xl border-[var(--border)] h-9 text-xs shadow-sm hover:shadow-md transition-shadow">
+              <RotateCcw className="mr-2 h-3.5 w-3.5" /> Clear Chat
+            </Button>
+         </div>
       </div>
 
       <div className="flex-1 relative bg-slate-50 overflow-hidden">
-        {/* Animated Scroll Line & Ball */}
+        {/* Animated Scroll Line & Ball — visible only when there are messages */}
         {messages.length > 0 && (
           <div className="absolute left-8 top-8 bottom-8 w-1 bg-slate-200 hidden md:block rounded-full z-0 overflow-hidden shadow-inner">
             <motion.div 
@@ -154,7 +184,7 @@ export default function AiAssistantPage() {
                  </div>
                  <h2 className="text-2xl font-bold text-slate-900 mb-2">How can I help you today?</h2>
                  <p className="text-sm text-slate-500 mb-10 text-center max-w-sm">
-                    I can analyze fleet performance, predict revenue, and help you make data-driven decisions.
+                    I can analyze fleet performance, predict revenue, and help you make data-driven decisions using live ERP data.
                  </p>
                  
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
@@ -205,6 +235,7 @@ export default function AiAssistantPage() {
                              : "bg-white border border-slate-200 text-slate-800 rounded-3xl rounded-bl-lg shadow-sm"
                        )}>
                           {message.role === 'assistant' && message.content === '' ? (
+                             // Loading dots while waiting for AI response
                              <div className="flex gap-1 items-center h-5">
                                 <div className="h-1.5 w-1.5 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                                 <div className="h-1.5 w-1.5 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -212,29 +243,42 @@ export default function AiAssistantPage() {
                              </div>
                           ) : (
                              message.role === 'user' ? <p>{message.content}</p> : (
-                                <ReactMarkdown 
-                                  remarkPlugins={[remarkGfm]}
-                                  className="text-sm leading-relaxed"
-                                  components={{
-                                     h3: ({node, ...props}) => <h3 className="font-bold mb-2 uppercase tracking-wide text-xs text-slate-500" {...props} />,
-                                     p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                                     strong: ({node, ...props}) => <strong className="font-semibold text-slate-900" {...props} />,
-                                     ul: ({node, ...props}) => <ul className="list-none space-y-1 my-2" {...props} />,
-                                     li: ({node, ...props}) => (
-                                        <li className="flex items-start">
-                                           <span className="mr-2.5 text-slate-400 mt-[3px] text-[10px]">●</span>
-                                           <span {...props} />
-                                        </li>
-                                     ),
-                                     ol: ({node, ...props}) => <ol className="list-decimal pl-4 space-y-1 my-2" {...props} />
-                                  }}
-                                >
-                                  {message.content}
-                                </ReactMarkdown>
+                                <>
+                                  <ReactMarkdown 
+                                    remarkPlugins={[remarkGfm]}
+                                    className="text-sm leading-relaxed"
+                                    components={{
+                                       h3: ({node, ...props}) => <h3 className="font-bold mb-2 uppercase tracking-wide text-xs text-slate-500" {...props} />,
+                                       p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                                       strong: ({node, ...props}) => <strong className="font-semibold text-slate-900" {...props} />,
+                                       ul: ({node, ...props}) => <ul className="list-none space-y-1 my-2" {...props} />,
+                                       li: ({node, ...props}) => (
+                                          <li className="flex items-start">
+                                             <span className="mr-2.5 text-slate-400 mt-[3px] text-[10px]">●</span>
+                                             <span {...props} />
+                                          </li>
+                                       ),
+                                       ol: ({node, ...props}) => <ol className="list-decimal pl-4 space-y-1 my-2" {...props} />
+                                    }}
+                                  >
+                                    {message.content}
+                                  </ReactMarkdown>
+                                  {/* RAG source citations */}
+                                  {message.sources && message.sources.length > 0 && (
+                                    <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-1.5">
+                                      {message.sources.map((src, i) => (
+                                        <span key={i} className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-full">
+                                          <ExternalLink className="h-2.5 w-2.5" />
+                                          {src.replace('.json', '')}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </>
                              )
                           )}
                           
-                          {message.role === 'assistant' && message.content !== '' && !isStreaming && (
+                          {message.role === 'assistant' && message.content !== '' && !isLoading && (
                              <div className="absolute -bottom-3 -right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Button 
                                    size="icon" 
@@ -269,18 +313,21 @@ export default function AiAssistantPage() {
                value={input}
                onChange={(e) => setInput(e.target.value)}
                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend(input)}
-               disabled={isStreaming}
+               disabled={isLoading}
                className="h-14 pl-5 pr-14 rounded-2xl border-slate-200 bg-slate-50 focus:bg-white text-base shadow-inner focus:shadow-md transition-all duration-300"
             />
             <Button 
                size="icon"
                onClick={() => handleSend(input)}
-               disabled={!input.trim() || isStreaming}
+               disabled={!input.trim() || isLoading}
                className="absolute right-2 h-10 w-10 rounded-xl bg-slate-900 text-white hover:bg-slate-800 shadow-md transition-transform active:scale-95 disabled:opacity-50"
             >
                <Send className="h-4 w-4" />
             </Button>
          </div>
+         <p className="text-center text-xs text-slate-400 mt-2 font-medium">
+           Powered by NVIDIA NIM · LLaMA 3.1 8B · RAG enabled
+         </p>
       </div>
     </div>
   )
