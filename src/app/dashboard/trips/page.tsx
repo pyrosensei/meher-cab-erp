@@ -144,9 +144,12 @@ export default function TripsPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98 }}
               onClick={() => setSelectedTrip(trip)}
-              className="group cursor-pointer rounded-2xl border border-[var(--border)] bg-white p-4 hover:shadow-md transition-all duration-200"
+              className="card-base card-interactive group relative overflow-hidden bg-white p-4 flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-8 transition-all duration-300"
             >
-              <div className="flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-8">
+              {/* Subtle glass side accent */}
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-sky-200 to-transparent opacity-50" />
+              
+              <div className="relative z-10 flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-8 w-full">
                  {/* ID & Status */}
                  <div className="flex items-center gap-3 w-48 shrink-0">
                     <div className="h-10 w-10 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100">
@@ -231,11 +234,12 @@ export default function TripsPage() {
 
       {/* Trip Detail Sheet */}
       <Sheet open={!!selectedTrip} onOpenChange={(open) => !open && setSelectedTrip(null)}>
-        <SheetContent className="w-full sm:max-w-md p-0 overflow-hidden rounded-l-3xl border-l border-[var(--border)] bg-[var(--secondary)]">
+        <SheetContent className="w-full sm:max-w-md p-0 overflow-hidden rounded-l-3xl border-l border-[var(--border)] bg-[var(--page-bg)]">
           {selectedTrip && (
             <ScrollArea className="h-full">
-              <div className="bg-white px-6 py-6 border-b border-[var(--border)] relative">
-                <SheetHeader className="text-left space-y-4">
+              <div className="bg-white/80 backdrop-blur-xl px-6 py-8 border-b border-[var(--border)] relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-sky-100/30 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                <SheetHeader className="text-left relative z-10 space-y-2">
                   <div className="flex items-center justify-between">
                      <div>
                         <Badge variant="outline" className="mb-2 bg-slate-50 font-mono">{selectedTrip.id}</Badge>

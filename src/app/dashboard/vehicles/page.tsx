@@ -101,11 +101,13 @@ export default function VehiclesPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              whileHover={{ scale: 1.01, boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }}
-              className="group relative cursor-pointer overflow-hidden rounded-2xl border border-[var(--border)] bg-white p-5 transition-all duration-300 flex flex-col"
+              className="card-base card-interactive group relative overflow-hidden bg-white p-5 flex flex-col"
               onClick={() => setSelectedVehicle(vehicle)}
             >
-              <div className="flex items-start justify-between mb-4">
+              {/* Subtle glass header accent */}
+              <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-slate-50 to-transparent opacity-50" />
+              
+              <div className="relative z-10 flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-600 border border-slate-200">
                     <Car className="h-6 w-6" />
@@ -179,12 +181,13 @@ export default function VehiclesPage() {
 
       {/* Vehicle Detail Sheet */}
       <Sheet open={!!selectedVehicle} onOpenChange={(open) => !open && setSelectedVehicle(null)}>
-        <SheetContent className="w-full sm:max-w-md p-0 overflow-hidden rounded-l-3xl border-l border-[var(--border)] bg-[var(--secondary)]">
+        <SheetContent className="w-full sm:max-w-md p-0 overflow-hidden rounded-l-3xl border-l border-[var(--border)] bg-[var(--page-bg)]">
           {selectedVehicle && (
             <ScrollArea className="h-full">
-              <div className="bg-white px-6 py-8 border-b border-[var(--border)] relative overflow-hidden">
-                <div className="absolute -right-6 -top-6 h-32 w-32 bg-slate-50 rounded-full flex items-center justify-center opacity-50">
-                   <Car className="h-16 w-16 text-slate-200" />
+              <div className="bg-white/80 backdrop-blur-xl px-6 py-8 border-b border-[var(--border)] relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-purple-100/30 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                <div className="absolute -right-6 -top-6 h-32 w-32 bg-slate-50/50 rounded-full flex items-center justify-center opacity-50 backdrop-blur-md">
+                   <Car className="h-16 w-16 text-slate-300" />
                 </div>
                 <SheetHeader className="text-left relative z-10 space-y-4">
                   <div>

@@ -14,7 +14,7 @@ import { recentActivity } from '@/data/notifications'
 import { dailyRevenueData, fleetHealthData, weeklyTripData } from '@/data/analytics'
 import {
   IndianRupee, MapPin, Users, Car, Brain, Activity, TrendingUp,
-  ArrowUpRight, Zap, Clock, ChevronRight, Sparkles
+  ArrowUpRight, Zap, Clock, ChevronRight, Sparkles, Navigation
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -308,9 +308,9 @@ export default function DashboardPage() {
         </motion.div>
       </div>
 
-      {/* Activity Feed + Quick Actions */}
+      {/* Activity Feed + Right Column */}
       <div className="grid gap-4 lg:grid-cols-3">
-        {/* Activity Feed - Upgraded to a sleek timeline */}
+        {/* Activity Feed — Timeline */}
         <motion.div
           variants={fadeUp}
           initial="hidden"
@@ -332,84 +332,125 @@ export default function DashboardPage() {
             variants={staggerContainer}
             initial="hidden"
             animate="visible"
-            className="space-y-4 relative"
+            className="space-y-3 relative"
           >
             {/* Timeline track */}
-            <div className="absolute left-6 top-2 bottom-2 w-px bg-[var(--border)] hidden sm:block" />
+            <div className="absolute left-5 top-2 bottom-2 w-px bg-gradient-to-b from-[var(--border)] via-[var(--border)] to-transparent hidden sm:block" />
             
-            {recentActivity.map((item) => (
+            {recentActivity.slice(0, 6).map((item) => (
               <motion.div
                 key={item.id}
                 variants={staggerItem}
-                className="group relative flex items-start gap-4 rounded-xl transition-all duration-300"
+                className="group relative flex items-start gap-3 rounded-xl transition-all duration-200"
               >
                 <div className={cn(
-                  'relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border bg-white shadow-sm transition-transform duration-300 group-hover:scale-110',
-                  item.type === 'trip' ? 'text-sky-500 border-sky-100' :
-                  item.type === 'driver' ? 'text-emerald-500 border-emerald-100' :
-                  'text-amber-500 border-amber-100'
+                  'relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border bg-white shadow-sm transition-all duration-200 group-hover:scale-105',
+                  item.type === 'trip' ? 'text-sky-500 border-sky-100 bg-sky-50/50' :
+                  item.type === 'driver' ? 'text-emerald-500 border-emerald-100 bg-emerald-50/50' :
+                  'text-amber-500 border-amber-100 bg-amber-50/50'
                 )}>
-                  {item.type === 'trip' ? <MapPin className="h-5 w-5" /> :
-                   item.type === 'driver' ? <Users className="h-5 w-5" /> :
-                   <Car className="h-5 w-5" />}
+                  {item.type === 'trip' ? <MapPin className="h-4 w-4" /> :
+                   item.type === 'driver' ? <Users className="h-4 w-4" /> :
+                   <Car className="h-4 w-4" />}
                 </div>
-                <div className="flex-1 min-w-0 bg-[var(--secondary)]/50 group-hover:bg-[var(--secondary)] border border-transparent group-hover:border-[var(--border)] rounded-2xl p-3.5 transition-all duration-300">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-[var(--foreground)]">{item.action}</span>
-                      <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)] border border-[var(--border)]">{item.subject}</span>
+                <div className="flex-1 min-w-0 rounded-xl p-3 bg-[var(--secondary)]/40 group-hover:bg-[var(--secondary)] border border-transparent group-hover:border-[var(--border)] transition-all duration-200">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-sm font-semibold text-[var(--foreground)] truncate">{item.action}</span>
+                      <span className="shrink-0 rounded bg-white px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary)] border border-[var(--border)]">{item.subject}</span>
                     </div>
-                    <span className="shrink-0 text-[11px] font-medium text-[var(--text-secondary)] bg-white px-2 py-0.5 rounded-full border border-[var(--border)] shadow-sm">
-                      {getTimeAgo(item.timestamp)}
-                    </span>
+                    <span className="shrink-0 text-[11px] text-[var(--text-secondary)]">{getTimeAgo(item.timestamp)}</span>
                   </div>
-                  <p className="text-[13px] text-[var(--text-secondary)] mt-1.5 leading-relaxed">{item.detail}</p>
+                  <p className="text-[12px] text-[var(--text-secondary)] mt-1 leading-relaxed line-clamp-1">{item.detail}</p>
                 </div>
               </motion.div>
             ))}
           </motion.div>
         </motion.div>
 
-        {/* Quick Actions - Upgraded to Bento Grid layout */}
+        {/* Right Column — Bento Grid */}
         <motion.div
           variants={fadeUp}
           initial="hidden"
           animate="visible"
           transition={{ delay: 0.8 }}
-          className="rounded-2xl border border-[var(--border)] bg-white p-6 shadow-sm flex flex-col"
+          className="flex flex-col gap-3"
         >
-          <div className="mb-6 pb-4 border-b border-[var(--border)]">
-            <h3 className="text-sm font-semibold tracking-tight">Quick Actions</h3>
-            <p className="text-[11px] text-[var(--text-secondary)] mt-1">Frequently used tools</p>
+          {/* Quick Nav Tiles */}
+          <div className="rounded-2xl border border-[var(--border)] bg-white p-5">
+            <h3 className="text-sm font-semibold mb-3">Quick Access</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: 'Drivers', href: '/dashboard/drivers', icon: Users, color: 'bg-blue-50 text-blue-600 border-blue-100' },
+                { label: 'Vehicles', href: '/dashboard/vehicles', icon: Car, color: 'bg-purple-50 text-purple-600 border-purple-100' },
+                { label: 'Live Map', href: '/dashboard/tracking', icon: Navigation, color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+                { label: 'AI Chat', href: '/dashboard/ai-assistant', icon: Brain, color: 'bg-amber-50 text-amber-600 border-amber-100' },
+              ].map((action) => (
+                <Link key={action.href} href={action.href}>
+                  <motion.div
+                    whileHover={{ y: -1, scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
+                    className={cn(
+                      'flex flex-col gap-2 rounded-xl border p-3.5 cursor-pointer transition-all duration-200 hover:shadow-sm',
+                      action.color
+                    )}
+                  >
+                    <action.icon className="h-4 w-4" />
+                    <span className="text-xs font-semibold">{action.label}</span>
+                  </motion.div>
+                </Link>
+              ))}
+            </div>
           </div>
-          
-          <div className="grid grid-cols-2 gap-3 flex-1">
-            {[
-              { label: 'New Trip', href: '/dashboard/trips', icon: MapPin, colSpan: 'col-span-2' },
-              { label: 'Live Map', href: '/dashboard/tracking', icon: Activity, colSpan: 'col-span-1' },
-              { label: 'Drivers', href: '/dashboard/reports', icon: Users, colSpan: 'col-span-1' },
-              { label: 'AI Chat', href: '/dashboard/ai-assistant', icon: Brain, colSpan: 'col-span-1' },
-              { label: 'Analytics', href: '/dashboard/analytics', icon: TrendingUp, colSpan: 'col-span-1' },
-            ].map((action, i) => (
-              <Link key={i} href={action.href} className={action.colSpan}>
-                <motion.div
-                  whileHover={{ y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="group flex h-full flex-col items-start justify-between rounded-2xl border border-[var(--border)] bg-[var(--secondary)]/30 hover:bg-[var(--foreground)] p-4 transition-all duration-300"
-                >
-                  <div className="flex w-full items-center justify-between mb-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white group-hover:bg-white/10 shadow-sm transition-colors">
-                      <action.icon className="h-4 w-4 text-[var(--text-secondary)] group-hover:text-white transition-colors" />
-                    </div>
-                    <ArrowUpRight className="h-4 w-4 text-[var(--text-secondary)] group-hover:text-white/50 transition-colors opacity-0 group-hover:opacity-100 translate-x-[-10px] translate-y-[10px] group-hover:translate-x-0 group-hover:translate-y-0" />
+
+          {/* Fleet Pulse */}
+          <div className="rounded-2xl border border-[var(--border)] bg-white p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold">Fleet Pulse</h3>
+              <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-bold">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live
+              </span>
+            </div>
+            <div className="space-y-3">
+              {[
+                { label: 'Active Drivers', value: 18, total: 30, color: 'bg-emerald-500' },
+                { label: 'Vehicles On Road', value: 15, total: 25, color: 'bg-blue-500' },
+                { label: 'Trips In Progress', value: 12, total: 156, color: 'bg-amber-500' },
+              ].map((stat) => (
+                <div key={stat.label}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-[var(--text-secondary)]">{stat.label}</span>
+                    <span className="text-xs font-semibold">{stat.value}<span className="text-[var(--text-secondary)] font-normal">/{stat.total}</span></span>
                   </div>
-                  <span className="text-[13px] font-semibold text-[var(--foreground)] group-hover:text-white transition-colors">
-                    {action.label}
-                  </span>
-                </motion.div>
-              </Link>
-            ))}
+                  <div className="h-1.5 rounded-full bg-[var(--secondary)] overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(stat.value / stat.total) * 100}%` }}
+                      transition={{ duration: 0.8, delay: 0.9, ease: 'easeOut' }}
+                      className={cn('h-full rounded-full', stat.color)}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
+
+          {/* View All link */}
+          <Link href="/dashboard/analytics">
+            <motion.div
+              whileHover={{ y: -1 }}
+              className="rounded-2xl border border-[var(--border)] bg-[var(--foreground)] text-white p-5 cursor-pointer flex items-center justify-between"
+            >
+              <div>
+                <p className="text-sm font-semibold">Full Analytics</p>
+                <p className="text-[11px] text-white/60 mt-0.5">Revenue, trips & trends</p>
+              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10">
+                <TrendingUp className="h-4 w-4" />
+              </div>
+            </motion.div>
+          </Link>
         </motion.div>
       </div>
     </div>

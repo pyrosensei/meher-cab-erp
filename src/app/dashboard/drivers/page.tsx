@@ -102,11 +102,13 @@ export default function DriversPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              whileHover={{ scale: 1.01, boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }}
-              className="group relative cursor-pointer overflow-hidden rounded-2xl border border-[var(--border)] bg-white p-5 transition-all duration-300"
+              className="card-base card-interactive group relative overflow-hidden bg-white p-5 flex flex-col"
               onClick={() => setSelectedDriver(driver)}
             >
-              <div className="flex items-start justify-between mb-4">
+              {/* Subtle glass header accent */}
+              <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-slate-50 to-transparent opacity-50" />
+              
+              <div className="relative z-10 flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-12 w-12 border border-[var(--border)]">
                     <AvatarFallback className="bg-gradient-to-br from-neutral-800 to-neutral-600 text-white font-medium">
@@ -142,6 +144,10 @@ export default function DriversPage() {
                 )}
               </div>
               
+              <div className="pt-4 mt-auto border-t border-[var(--border)] flex items-center justify-between text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                View Details <ChevronRight className="h-3.5 w-3.5 group-hover:text-[var(--foreground)] transition-colors" />
+              </div>
+              
               {/* Accent Line */}
               <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[var(--accent)]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </motion.div>
@@ -158,13 +164,15 @@ export default function DriversPage() {
 
       {/* Driver Detail Sheet */}
       <Sheet open={!!selectedDriver} onOpenChange={(open) => !open && setSelectedDriver(null)}>
-        <SheetContent className="w-full sm:max-w-md p-0 overflow-hidden rounded-l-3xl border-l border-[var(--border)] bg-[var(--secondary)]">
+        <SheetContent className="w-full sm:max-w-md p-0 overflow-hidden rounded-l-3xl border-l border-[var(--border)] bg-[var(--page-bg)]">
           {selectedDriver && (
             <ScrollArea className="h-full">
-              <div className="bg-white px-6 py-8 border-b border-[var(--border)]">
-                <SheetHeader className="text-left space-y-4">
+              <div className="bg-white/80 backdrop-blur-xl px-6 py-8 border-b border-[var(--border)] relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-100/30 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                
+                <SheetHeader className="text-left relative z-10 space-y-4">
                   <div className="flex items-center gap-4">
-                    <Avatar className="h-20 w-20 border-2 border-white shadow-md">
+                    <Avatar className="h-20 w-20 border-2 border-white shadow-xl">
                       <AvatarFallback className="bg-gradient-to-br from-neutral-800 to-neutral-600 text-white text-xl font-semibold">
                         {selectedDriver.avatar}
                       </AvatarFallback>
