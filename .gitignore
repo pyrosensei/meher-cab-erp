@@ -1,41 +1,104 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
-/.pnp
+node_modules/
+.npm/
+.pnpm-store/
+.pnp
 .pnp.*
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+.turbo/
+.parcel-cache/
 
 # testing
-/coverage
+coverage/
+.nyc_output/
+.pytest_cache/
+.ipynb_checkpoints/
+.coverage
+.coverage.*
+htmlcov/
 
 # next.js
-/.next/
-/out/
+.next/
+out/
 
 # production
-/build
+build/
+dist/
+site/
+out/
 
 # misc
 .DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.Spotlight-V100/
+.Trashes/
 *.pem
+*.log
+*.out
+*.err
 
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+.eslintcache
+.cache/
 
 # env files (can opt-in for committing if needed)
 .env*
+.python-version
 
 # vercel
 .vercel
 
+# ide
+.vscode/
+.idea/
+**/.vscode/
+**/.idea/
+
+# python
+__pycache__/
+*.py[cod]
+.py,cover
+*.egg
+*.egg-info/
+.eggs/
+.wheel/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.venv/
+venv/
+env/
+ENV/
+pip-wheel-metadata/
+
+# local data stores
+chroma_db/
+*.sqlite
+*.sqlite3
+*.db
+*.duckdb
+
+# model artifacts
+*.pt
+*.pth
+*.onnx
+*.ckpt
+*.safetensors
+*.bin
+*.gguf
+*.h5
+
 # typescript
 *.tsbuildinfo
-next-env.d.ts

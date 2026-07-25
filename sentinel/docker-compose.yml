@@ -1,0 +1,75 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sentinel — docker-compose.yml
+#
+# Spins up two services:
+#   1. mock-container  — continuously emits synthetic logs + metrics (port 8001)
+#   2. backend         — FastAPI: ingestion scheduler, RAG, WebSocket, auth (port 8000)
+#
+# The frontend is intentionally left out of Docker so it can be run locally
+# with `npm run dev` against localhost:8000.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── 1. Synthetic telemetry generator ──────────────────────────────────────
+  mock-container:
+    build:
+      context: ./mock-container
+    container_name: sentinel-mock
+    ports:
+      - "8001:8001"
+    environment:
+      LOG_INTERVAL_SECONDS: "1.5"    # How often a new log line is emitted
+      METRICS_INTERVAL_SECONDS: "2"  # How often metrics snapshot is refreshed
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── 2. FastAPI backend ─────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+    container_name: sentinel-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Where the mock telemetry service lives (internal Docker network name)
+      MOCK_CONTAINER_URL: "http://mock-container:8001"
+      # SQLite file for user accounts; stored in a named volume
+      DATABASE_URL: "sqlite+aiosqlite:////app/data/sentinel.db"
+      # Change this to a long random string in production!
+      SECRET_KEY: "sentinel-dev-secret-change-me-in-production"
+      # Algorithm for JWT signing
+      JWT_ALGORITHM: "HS256"
+      # Groq API key — required for LLM inference (see README for where to get one)
+      GROQ_API_KEY: "${GROQ_API_KEY}"
+      # Groq model to use (fast + free tier)
+      GROQ_MODEL: "llama3-8b-8192"
+      # Persistent ChromaDB vector store location (inside the container volume)
+      CHROMA_PATH: "/app/chroma_db"
+      # How many top chunks to retrieve per RAG query
+      RAG_TOP_K: "5"
+      # Ingestion polling cadence in seconds
+      INGEST_INTERVAL_SECONDS: "5"
+    volumes:
+      - backend-chroma:/app/chroma_db   # ChromaDB vector index persisted
+      - backend-db:/app/data            # SQLite DB persisted
+    depends_on:
+      mock-container:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+# Named volumes so data survives container restarts
+volumes:
+  backend-chroma:
+  backend-db:
