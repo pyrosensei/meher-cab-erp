@@ -11,7 +11,14 @@ from fastapi import APIRouter, HTTPException
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from AI_SEC.services.ai_service import ai_service
+try:
+    from AI_SEC.services.ai_service import ai_service
+except ImportError:
+    ai_service = None
+    logger.warning(
+        "AI_SEC.services.ai_service is not available in this workspace; "
+        "the chatbot endpoint will return a clear service-unavailable error."
+    )
 
 
 router = APIRouter(prefix="/chat", tags=["AI Chatbot"])
@@ -37,6 +44,15 @@ class ChatResponse(BaseModel):
 @router.post("/", response_model=ChatResponse)
 async def chat(request: ChatRequest) -> ChatResponse:
     """Main chatbot endpoint — delegates entirely to AI_SEC."""
+    if ai_service is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "AI chatbot service is not available in this workspace. "
+                "The expected AI_SEC implementation is missing from the repository."
+            ),
+        )
+
     try:
         outcome = await ai_service.chat(
             user_message=request.message,
@@ -55,4 +71,10 @@ async def chat(request: ChatRequest) -> ChatResponse:
 @router.get("/stats")
 async def stats() -> dict:
     """Diagnostic endpoint exposing AI_SEC configuration."""
+    if ai_service is None:
+        return {
+            "available": False,
+            "reason": "AI_SEC.services.ai_service is missing from this workspace",
+        }
+
     return ai_service.stats()

@@ -9,7 +9,7 @@ export function useAnimatedCounter(
   delay: number = 0
 ) {
   const [display, setDisplay] = useState(0)
-  const ref = useRef<HTMLSpanElement>(null)
+  const ref = useRef<HTMLParagraphElement>(null)
   const isInView = useInView(ref, { once: true })
   const motionValue = useMotionValue(0)
   const springValue = useSpring(motionValue, {

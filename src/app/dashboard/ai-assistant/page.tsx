@@ -2,13 +2,12 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence, useScroll, useTransform, useSpring } from 'framer-motion'
-import { PageHeader } from '@/components/shared/page-header'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { 
   Send, Bot, User, Copy, RotateCcw, 
-  Sparkles, MessageSquare, Lightbulb, 
+  MessageSquare, Lightbulb, 
   TrendingUp, AlertCircle, Check, ExternalLink
 } from 'lucide-react'
 
@@ -31,6 +30,8 @@ const suggestedPrompts = [
 ]
 
 // Call the real backend API; fall back to a graceful error message
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+
 async function sendToAPI(
   message: string,
   history: { role: string; content: string }[]
@@ -52,6 +53,7 @@ export default function AiAssistantPage() {
   // Track whether backend is reachable (for graceful degradation UI)
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const messageIdRef = useRef(0)
 
   const { scrollYProgress } = useScroll({ container: scrollRef })
   const scaleY = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 })
@@ -66,7 +68,7 @@ export default function AiAssistantPage() {
 
   // Check backend health on mount
   useEffect(() => {
-    fetch('/api/v1/../health')
+    fetch(`${API_BASE_URL}/health`)
       .then(r => r.ok ? setBackendOnline(true) : setBackendOnline(false))
       .catch(() => setBackendOnline(false))
   }, [])
@@ -77,11 +79,16 @@ export default function AiAssistantPage() {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
+  const nextMessageId = () => {
+    messageIdRef.current += 1
+    return `message-${messageIdRef.current}`
+  }
+
   const handleSend = async (text: string) => {
     if (!text.trim() || isLoading) return
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: nextMessageId(),
       role: 'user',
       content: text,
       timestamp: new Date()
@@ -95,7 +102,7 @@ export default function AiAssistantPage() {
     const history = messages.map(m => ({ role: m.role, content: m.content }))
 
     // Add placeholder assistant message
-    const assistantId = (Date.now() + 1).toString()
+    const assistantId = nextMessageId()
     setMessages(prev => [...prev, {
       id: assistantId,
       role: 'assistant',
@@ -244,25 +251,26 @@ export default function AiAssistantPage() {
                           ) : (
                              message.role === 'user' ? <p>{message.content}</p> : (
                                 <>
+                                 <div className="text-sm leading-relaxed">
                                   <ReactMarkdown 
                                     remarkPlugins={[remarkGfm]}
-                                    className="text-sm leading-relaxed"
                                     components={{
-                                       h3: ({node, ...props}) => <h3 className="font-bold mb-2 uppercase tracking-wide text-xs text-slate-500" {...props} />,
-                                       p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                                       strong: ({node, ...props}) => <strong className="font-semibold text-slate-900" {...props} />,
-                                       ul: ({node, ...props}) => <ul className="list-none space-y-1 my-2" {...props} />,
-                                       li: ({node, ...props}) => (
-                                          <li className="flex items-start">
-                                             <span className="mr-2.5 text-slate-400 mt-[3px] text-[10px]">●</span>
-                                             <span {...props} />
-                                          </li>
-                                       ),
-                                       ol: ({node, ...props}) => <ol className="list-decimal pl-4 space-y-1 my-2" {...props} />
+                                      h3: ({...props}) => <h3 className="font-bold mb-2 uppercase tracking-wide text-xs text-slate-500" {...props} />,
+                                      p: ({...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                                      strong: ({...props}) => <strong className="font-semibold text-slate-900" {...props} />,
+                                      ul: ({...props}) => <ul className="list-none space-y-1 my-2" {...props} />,
+                                      li: ({...props}) => (
+                                        <li className="flex items-start">
+                                          <span className="mr-2.5 text-slate-400 mt-[3px] text-[10px]">●</span>
+                                          <span {...props} />
+                                        </li>
+                                      ),
+                                      ol: ({...props}) => <ol className="list-decimal pl-4 space-y-1 my-2" {...props} />
                                     }}
                                   >
                                     {message.content}
                                   </ReactMarkdown>
+                                 </div>
                                   {/* RAG source citations */}
                                   {message.sources && message.sources.length > 0 && (
                                     <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-1.5">
