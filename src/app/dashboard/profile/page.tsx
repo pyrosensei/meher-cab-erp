@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
+import { useAppStore } from '@/lib/store'
 import { 
   User, Mail, Phone, MapPin, Calendar, Award, 
   TrendingUp, Clock, Edit, Shield, Briefcase, Activity, Target
@@ -25,6 +26,8 @@ const activityLog = [
 ]
 
 export default function ProfilePage() {
+   const currentUser = useAppStore((state) => state.currentUser)
+
   return (
     <div className="space-y-6 pb-10 max-w-5xl mx-auto">
       <PageHeader 
@@ -47,11 +50,11 @@ export default function ProfilePage() {
                <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6">
                   <Avatar className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-white shadow-md bg-white">
                      <AvatarFallback className="bg-gradient-to-br from-[var(--foreground)] to-slate-700 text-white text-3xl font-semibold">
-                        RS
+                        {currentUser.avatar}
                      </AvatarFallback>
                   </Avatar>
                   <div className="pb-2">
-                     <h2 className="text-2xl font-bold text-[var(--foreground)]">Rajesh Sharma</h2>
+                     <h2 className="text-2xl font-bold text-[var(--foreground)]">{currentUser.name}</h2>
                      <p className="text-sm font-medium text-[var(--text-secondary)] flex items-center gap-2 mt-1">
                         <Briefcase className="h-4 w-4" /> Chief Fleet Manager
                      </p>
@@ -99,7 +102,7 @@ export default function ProfilePage() {
                <div className="grid sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
                      <Label>Full Name</Label>
-                     <Input readOnly defaultValue="Rajesh Sharma" className="rounded-xl h-11 bg-slate-50 border-transparent focus-visible:ring-0" />
+                     <Input readOnly defaultValue={currentUser.name} className="rounded-xl h-11 bg-slate-50 border-transparent focus-visible:ring-0" />
                   </div>
                   <div className="space-y-2">
                      <Label>Employee ID</Label>
@@ -109,7 +112,7 @@ export default function ProfilePage() {
                      <Label>Email Address</Label>
                      <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-secondary)]" />
-                        <Input readOnly defaultValue="rajesh@mehercabs.in" className="rounded-xl h-11 bg-slate-50 border-transparent focus-visible:ring-0 pl-10" />
+                        <Input readOnly defaultValue={currentUser.email} className="rounded-xl h-11 bg-slate-50 border-transparent focus-visible:ring-0 pl-10" />
                      </div>
                   </div>
                   <div className="space-y-2">

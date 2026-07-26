@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Car, MapPin, Gauge } from 'lucide-react'
 import { AuthForm } from '@/components/auth/AuthForm'
-
-const CAR_IMAGES = ['/car1.png', '/car2.png', '/car3.png', '/car4.png']
+import { CAR_IMAGES, LOGIN_FEATURES } from '@/lib/login-content'
 
 export default function LoginPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -99,11 +98,7 @@ export default function LoginPage() {
             transition={{ delay: 0.5, duration: 0.6 }}
             className="flex flex-wrap gap-3 pt-6"
           >
-            {[
-              { icon: Car, text: '25 Active Vehicles' },
-              { icon: MapPin, text: 'Real-time Tracking' },
-              { icon: Gauge, text: 'Performance Analytics' }
-            ].map((feature, i) => (
+            {LOGIN_FEATURES.map((feature, i) => (
               <motion.div
                 key={i}
                 whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.2)" }}

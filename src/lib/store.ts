@@ -25,9 +25,9 @@ export const useAppStore = create<AppState>((set) => ({
   notificationCount: 5,
   setNotificationCount: (count) => set({ notificationCount: count }),
   currentUser: {
-    name: 'Rajesh Sharma',
-    email: 'rajesh@mehercabs.in',
-    role: 'Fleet Manager',
-    avatar: 'RS',
+    name: 'Employee',
+    email: 'employee@example.com',
+    role: 'Staff',
+    avatar: 'EM',
   },
 }))

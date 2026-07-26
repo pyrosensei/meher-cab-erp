@@ -3,6 +3,7 @@ import asyncio
 import pytest
 
 from app.ai.chatbot.service import ai_service
+from app.ai.chatbot.service import AIService
 from app.routers.chatbot import ChatRequest, ChatMessage
 
 
@@ -39,6 +40,44 @@ def test_chat_service_honors_top_k(monkeypatch):
     asyncio.run(ai_service.chat("hello", [], top_k=9))
 
     assert captured["top_k"] == 9
+
+
+def test_chat_service_uses_settings_rag_top_k(monkeypatch):
+    captured = {}
+
+    async def fake_query_rag(query, top_k, history):
+        captured["top_k"] = top_k
+        return {"reply": "ok", "sources": [], "used_rag": False}
+
+    monkeypatch.setattr("app.ai.chatbot.service.query_rag", fake_query_rag)
+    monkeypatch.setattr("app.ai.chatbot.service.settings.rag_top_k", 7)
+
+    asyncio.run(ai_service.chat("hello", []))
+
+    assert captured["top_k"] == 7
+
+
+def test_chat_service_normalizes_history(monkeypatch):
+    captured = {}
+
+    async def fake_query_rag(query, top_k, history):
+        captured["history"] = history
+        return {"reply": "ok", "sources": [], "used_rag": False}
+
+    monkeypatch.setattr("app.ai.chatbot.service.query_rag", fake_query_rag)
+
+    asyncio.run(
+        ai_service.chat(
+            "hello",
+            [
+                {"role": "user", "content": "  keep me  "},
+                {"role": "tool", "content": "drop me"},
+                {"role": "assistant", "content": ""},
+            ],
+        )
+    )
+
+    assert captured["history"] == [{"role": "user", "content": "keep me"}]
 
 
 def test_chat_request_validation():

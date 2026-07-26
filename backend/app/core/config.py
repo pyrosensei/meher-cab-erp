@@ -1,6 +1,6 @@
-"""
-Backend application settings including AI configuration.
-"""
+"""Backend application settings including AI configuration."""
+from __future__ import annotations
+
 from pathlib import Path
 from typing import List
 
@@ -35,5 +35,13 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
+def _validate_settings(settings: Settings) -> Settings:
+    if settings.app_env != "development":
+        if settings.secret_key in {"dev-secret-change-in-production", "meher-cab-erp-dev-secret-key-2025"}:
+            raise ValueError("secret_key must be set in non-development environments")
+        if not settings.nvidia_api_key:
+            raise ValueError("nvidia_api_key must be set in non-development environments")
+    return settings
 
-settings = Settings()
+
+settings = _validate_settings(Settings())
