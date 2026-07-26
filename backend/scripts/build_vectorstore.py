@@ -1,20 +1,25 @@
 """
-Build the ChromaDB vector index from seed data.
+Build the in-memory RAG index from seed data.
+
 Usage: cd backend && python scripts/build_vectorstore.py
 Requires: NVIDIA_API_KEY in .env
 """
-import asyncio
+from __future__ import annotations
+
 import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 
-from app.ai.rag.pipeline import rag_pipeline
+from app.ai.rag.pipeline import get_stats, initialize_rag
 
-async def main():
-    print("Building ChromaDB vector store from seed data...")
-    await rag_pipeline.index()
-    print("Done! Vector store is ready.")
+
+def main() -> None:
+    print("Building RAG index from seed data...")
+    initialize_rag()
+    stats = get_stats()
+    print(f"Done! Indexed {stats['total_chunks']} chunks.")
+
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
