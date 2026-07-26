@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 
-BASE_DIR = Path(__file__).parent.parent.parent.parent.parent
+BASE_DIR = Path(__file__).parent.parent.parent.parent
 SEED_DIR = BASE_DIR / "data" / "seed"
 
 

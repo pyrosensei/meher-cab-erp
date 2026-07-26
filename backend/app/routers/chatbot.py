@@ -1,24 +1,17 @@
 """
 Chatbot HTTP endpoint.
 
-Thin wrapper around `AI_SEC.services.ai_service` that maps HTTP
-requests to the AI subsystem. The router knows nothing about NVIDIA
-NIM, ChromaDB, or embeddings — those live entirely in `AI_SEC`.
+Thin wrapper around `app.ai.chatbot.service.ai_service` that maps HTTP
+requests to the local AI subsystem. The router knows nothing about NVIDIA
+NIM, ChromaDB, or embeddings — those live entirely in `app.ai`.
 """
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 from loguru import logger
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-try:
-    from AI_SEC.services.ai_service import ai_service
-except ImportError:
-    ai_service = None
-    logger.warning(
-        "AI_SEC.services.ai_service is not available in this workspace; "
-        "the chatbot endpoint will return a clear service-unavailable error."
-    )
+from app.ai.chatbot.service import ai_service
 
 
 router = APIRouter(prefix="/chat", tags=["AI Chatbot"])
@@ -27,6 +20,14 @@ router = APIRouter(prefix="/chat", tags=["AI Chatbot"])
 class ChatMessage(BaseModel):
     role: str = Field(..., min_length=1)
     content: str = Field(..., min_length=1)
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, value: str) -> str:
+        allowed_roles = {"system", "user", "assistant"}
+        if value not in allowed_roles:
+            raise ValueError("role must be one of: system, user, assistant")
+        return value
 
 
 class ChatRequest(BaseModel):
@@ -43,16 +44,7 @@ class ChatResponse(BaseModel):
 
 @router.post("/", response_model=ChatResponse)
 async def chat(request: ChatRequest) -> ChatResponse:
-    """Main chatbot endpoint — delegates entirely to AI_SEC."""
-    if ai_service is None:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "AI chatbot service is not available in this workspace. "
-                "The expected AI_SEC implementation is missing from the repository."
-            ),
-        )
-
+    """Main chatbot endpoint — delegates to local AI service."""
     try:
         outcome = await ai_service.chat(
             user_message=request.message,
@@ -60,7 +52,8 @@ async def chat(request: ChatRequest) -> ChatResponse:
             top_k=request.top_k,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        logger.warning(f"Chat request rejected: {exc}")
+        raise HTTPException(status_code=422, detail="Invalid chat request") from exc
     except Exception as exc:  # noqa: BLE001 — last-resort guard
         logger.exception(f"Chat endpoint failed: {exc}")
         raise HTTPException(status_code=500, detail="Chat service unavailable") from exc
@@ -70,11 +63,5 @@ async def chat(request: ChatRequest) -> ChatResponse:
 
 @router.get("/stats")
 async def stats() -> dict:
-    """Diagnostic endpoint exposing AI_SEC configuration."""
-    if ai_service is None:
-        return {
-            "available": False,
-            "reason": "AI_SEC.services.ai_service is missing from this workspace",
-        }
-
+    """Diagnostic endpoint exposing local AI service configuration."""
     return ai_service.stats()

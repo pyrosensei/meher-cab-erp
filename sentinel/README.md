@@ -10,7 +10,7 @@
 |---|---|
 | **Mock Container** | Emits synthetic logs (INFO / WARNING / ERROR) + metrics (CPU, memory, latency) every ~1.5 s |
 | **Ingestion Service** | Polls the container every 5 s, chunks + embeds new data with `sentence-transformers`, upserts into ChromaDB |
-| **RAG Chat** | On each user message: embeds the query → retrieves top-5 chunks → builds a grounded prompt → calls **Groq LLaMA-3** → returns answer + source citations |
+| **RAG Chat** | On each user message: embeds the query → retrieves top-5 chunks → builds a grounded prompt → calls **NVIDIA NIM LLM** → returns answer + source citations |
 | **WebSocket Dashboard** | Pushes the latest stats + log feed to the browser every 5 s |
 | **Next.js Frontend** | Live KPI cards, auto-scrolling log feed, and the chat interface — all with Framer Motion animations |
 
@@ -26,9 +26,9 @@
 | Node.js | 18+ |
 | Python | 3.11+ (for local backend dev only) |
 
-### 1 — Get a free Groq API key
+### 1 — Get a free NVIDIA API key
 
-1. Go to **<https://console.groq.com>** and sign up (free, no credit card)
+1. Go to **<https://build.nvidia.com>** and sign up (free)
 2. Click **API Keys → Create API Key**
 3. Copy the key — you'll need it in step 2
 
@@ -42,7 +42,7 @@ cp .env.example .env
 Open `.env` and set:
 
 ```
-GROQ_API_KEY=gsk_your_key_here
+NVIDIA_API_KEY=nvapi_your_key_here
 ```
 
 ### 3 — Start mock container + backend
@@ -86,7 +86,7 @@ python -m venv .venv
 .venv\Scripts\activate        # Windows
 # source .venv/bin/activate   # macOS/Linux
 pip install -r requirements.txt
-cp .env.example .env          # fill in GROQ_API_KEY
+cp .env.example .env          # fill in NVIDIA_API_KEY
 uvicorn app.main:app --reload --port 8000
 ```
 

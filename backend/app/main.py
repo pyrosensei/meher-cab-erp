@@ -14,7 +14,7 @@ from app.routers import chatbot, dashboard, drivers, notifications, trips, vehic
 async def lifespan(app: FastAPI):
     # Create all DB tables on startup (idempotent).
     await init_db()
-    logger.info(f"Mehar ERP API started [{settings.APP_ENV}] — docs at /api/docs")
+    logger.info(f"Mehar ERP API started [{settings.app_env}] — docs at /api/docs")
     yield
     logger.info("Mehar ERP API shutting down")
 
@@ -29,7 +29,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,10 +37,10 @@ app.add_middleware(
 
 # Register all domain routers under /api/v1.
 for router in (dashboard, drivers, vehicles, trips, notifications, chatbot):
-    app.include_router(router.router, prefix=settings.API_V1_PREFIX)
+    app.include_router(router.router, prefix=settings.api_v1_prefix)
 
 
 @app.get("/health")
 async def health() -> dict:
     """Health check endpoint."""
-    return {"status": "ok", "env": settings.APP_ENV}
+    return {"status": "ok"}

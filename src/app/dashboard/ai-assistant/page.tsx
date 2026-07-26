@@ -118,10 +118,10 @@ export default function AiAssistantPage() {
         m.id === assistantId ? { ...m, content: reply, sources: sources ?? [] } : m
       ))
     } catch {
-      // Graceful fallback — never leave empty message
+        // Graceful fallback — never leave empty message
       setMessages(prev => prev.map(m =>
         m.id === assistantId
-          ? { ...m, content: "I couldn't connect to the AI service. Make sure the backend is running at `localhost:8000`." }
+            ? { ...m, content: "I couldn't connect to the AI service right now. Please try again later." }
           : m
       ))
     } finally {

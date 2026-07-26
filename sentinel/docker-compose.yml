@@ -46,10 +46,10 @@ services:
       SECRET_KEY: "sentinel-dev-secret-change-me-in-production"
       # Algorithm for JWT signing
       JWT_ALGORITHM: "HS256"
-      # Groq API key — required for LLM inference (see README for where to get one)
-      GROQ_API_KEY: "${GROQ_API_KEY}"
-      # Groq model to use (fast + free tier)
-      GROQ_MODEL: "llama3-8b-8192"
+      # NVIDIA NIM API key — required for LLM inference (get a free key at https://build.nvidia.com)
+      NVIDIA_API_KEY: "${NVIDIA_API_KEY}"
+      # NVIDIA NIM model to use
+      NVIDIA_MODEL: "meta/llama-3.1-8b-instruct"
       # Persistent ChromaDB vector store location (inside the container volume)
       CHROMA_PATH: "/app/chroma_db"
       # How many top chunks to retrieve per RAG query

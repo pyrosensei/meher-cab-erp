@@ -68,6 +68,7 @@ class NIMClient:
         response = client.embeddings.create(
             input=texts,
             model=settings.embedding_model,
+            extra_body={"input_type": "query"},
         )
         return [data.embedding for data in response.data]
 
