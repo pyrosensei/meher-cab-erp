@@ -1,0 +1,1 @@
+"""AI package for Mehar Cab ERP."""
