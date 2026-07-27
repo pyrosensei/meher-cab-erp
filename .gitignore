@@ -130,3 +130,6 @@ logs/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# personal guides
+VIVA_GUIDE.md
