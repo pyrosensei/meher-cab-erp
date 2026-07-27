@@ -42,9 +42,9 @@ _SYSTEM_PROMPT_TEMPLATE = """\
 You are Sentinel, an intelligent monitoring assistant for a containerized service.
 You analyze real-time telemetry data — logs and metrics — to answer operator questions.
 
-IMPORTANT RULES:
-- Base your answers ONLY on the telemetry context provided below.
-- If the context doesn't contain enough information to answer, say so honestly.
+CRITICAL RULES:
+- Base your answers EXCLUSIVELY on the telemetry context provided below.
+- If the context does NOT contain enough information to answer the question, you MUST say so. Never guess or use your general knowledge.
 - Be concise and precise. Operators need actionable information.
 - When citing specific events, include the timestamp and log level.
 - For metrics questions, quote the actual numbers from the context.
@@ -59,8 +59,8 @@ Current time (UTC): {current_time}
 _SYSTEM_PROMPT_NO_CONTEXT = """\
 You are Sentinel, an intelligent monitoring assistant for a containerized service.
 No telemetry data has been ingested yet, or no relevant chunks were found.
-Tell the user that you're still waiting for telemetry data to be ingested,
-and suggest they wait a few seconds and try again.
+You MUST NOT guess or use general knowledge. Tell the user that no relevant telemetry data is available yet,
+and suggest they wait a few seconds for the ingestion pipeline to collect data and try again.
 """
 
 
@@ -114,7 +114,13 @@ async def rag_chat(
     current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     # ── Step 1: Retrieve relevant chunks ──────────────────────────────────
-    chunks = query_chunks(user_message, top_k=top_k)
+    # Auto-widen top_k for summarization/overview queries
+    _WIDE_KEYWORDS = {"summarize", "summary", "overview", "all", "everything", "recent", "latest", "what happened"}
+    effective_k = top_k
+    if effective_k is None and any(kw in user_message.lower() for kw in _WIDE_KEYWORDS):
+        effective_k = max(settings.rag_top_k * 3, 15)
+        logger.debug(f"Widened top_k to {effective_k} for broad query: {user_message[:60]!r}")
+    chunks = query_chunks(user_message, top_k=effective_k)
 
     # ── Step 2: Build context string and source labels ────────────────────
     sources: list[str] = []

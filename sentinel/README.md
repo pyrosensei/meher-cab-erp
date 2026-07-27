@@ -148,14 +148,14 @@ sentinel/
 
 | Variable | Service | Default | Description |
 |---|---|---|---|
-| `GROQ_API_KEY` | backend | *(required)* | Groq LLM key |
+| `NVIDIA_API_KEY` | backend | *(required)* | NVIDIA NIM LLM key |
 | `SECRET_KEY` | backend | dev placeholder | JWT signing secret |
 | `MOCK_CONTAINER_URL` | backend | `http://localhost:8001` | Telemetry service URL |
 | `DATABASE_URL` | backend | SQLite local | SQLAlchemy DB URL |
 | `CHROMA_PATH` | backend | `./chroma_db` | ChromaDB persist directory |
 | `INGEST_INTERVAL_SECONDS` | backend | `5` | Ingestion cadence |
 | `RAG_TOP_K` | backend | `5` | Retrieved chunks per query |
-| `GROQ_MODEL` | backend | `llama3-8b-8192` | Groq model ID |
+| `NVIDIA_MODEL` | backend | `meta/llama-3.1-8b-instruct` | NVIDIA NIM model ID |
 | `LOG_INTERVAL_SECONDS` | mock-container | `1.5` | Log generation cadence |
 
 ---

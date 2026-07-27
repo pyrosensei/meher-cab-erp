@@ -9,6 +9,7 @@ greenlet>=3.0.0          # async SQLite driver for SQLAlchemy
 
 # ── Auth ───────────────────────────────────────────────────────────────────
 passlib[bcrypt]==1.7.4     # bcrypt password hashing
+bcrypt<4.1                # pin to compat version for passlib
 python-jose[cryptography]==3.3.0  # JWT encode/decode
 
 # ── Settings ───────────────────────────────────────────────────────────────

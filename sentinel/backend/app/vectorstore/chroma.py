@@ -9,6 +9,7 @@ Pure Python/NumPy in-memory vector store.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from typing import Any
 
 import numpy as np
@@ -16,6 +17,7 @@ from loguru import logger
 from openai import OpenAI
 
 from app.core.config import settings
+
 
 # ── Module-level singletons ────────────────────────────────────────────────
 _documents: list[dict[str, Any]] = []
@@ -43,11 +45,12 @@ def _get_embedder_client() -> OpenAI:
     return _embedder_client
 
 
-def embed_texts(texts: list[str]) -> list[list[float]]:
+def embed_texts(texts: list[str], input_type: str = "passage") -> list[list[float]]:
     client = _get_embedder_client()
     response = client.embeddings.create(
         input=texts,
         model=settings.embedding_model,
+        extra_body={"input_type": input_type},
     )
     return [data.embedding for data in response.data]
 
@@ -71,6 +74,19 @@ def upsert_chunks(chunks: list[dict[str, Any]]) -> None:
         })
 
 
+def _parse_timestamp(ts: str | None) -> datetime | None:
+    """Parse an ISO 8601 timestamp string, returning None on failure."""
+    if not ts:
+        return None
+    try:
+        return datetime.fromisoformat(ts)
+    except (ValueError, TypeError):
+        return None
+
+
+_RECENCY_DECAY_HOURS = 6.0  # Chunks older than this get no recency bonus.
+
+
 def query_chunks(
     query_text: str,
     top_k: int | None = None,
@@ -80,8 +96,9 @@ def query_chunks(
         return []
 
     k = top_k or settings.rag_top_k
+    now = datetime.now(timezone.utc)
 
-    query_embedding = np.array(embed_texts([query_text])[0], dtype=np.float32)
+    query_embedding = np.array(embed_texts([query_text], input_type="query")[0], dtype=np.float32)
     
     # Calculate cosine similarity using Numpy
     results = []
@@ -97,6 +114,15 @@ def query_chunks(
         
         # Distance = 1 - similarity (to match chromadb's distance metric)
         dist = 1.0 - float(sim)
+
+        # Recency boost: reduce distance for newer chunks
+        ts = _parse_timestamp(doc.get("metadata", {}).get("timestamp"))
+        if ts:
+            age_hours = (now - ts).total_seconds() / 3600.0
+            # Linear decay: 0 hours → full recency bonus (dist -0.1), _RECENCY_DECAY_HOURS → no bonus
+            recency_bonus = max(0.0, 1.0 - age_hours / _RECENCY_DECAY_HOURS) * 0.1
+            dist -= recency_bonus
+
         results.append((dist, doc))
         
     # Sort by distance ascending (lowest distance = highest similarity)

@@ -95,7 +95,7 @@ async def _ingest_tick() -> None:
     try:
         await _do_ingest()
     except Exception as exc:
-        logger.error(f"Ingestion tick failed: {exc}", exc_info=True)
+        logger.opt(exception=True).error("Ingestion tick failed: {}", exc)
 
 
 async def _do_ingest() -> None:

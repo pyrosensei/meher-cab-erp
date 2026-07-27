@@ -19,7 +19,7 @@ from loguru import logger
 
 from app.core.config import settings
 from app.core.database import init_db
-from app.routers import auth, chat, health, websocket
+from app.routers import auth, chat, debug, health, websocket
 from app.services.ingestion import start_scheduler, stop_scheduler
 from app.vectorstore.chroma import init_chroma
 
@@ -77,4 +77,5 @@ app.add_middleware(
 app.include_router(health.router)                              # GET /health
 app.include_router(auth.router, prefix="/api/v1/auth")        # POST /api/v1/auth/*
 app.include_router(chat.router, prefix="/api/v1")             # POST /api/v1/chat/
+app.include_router(debug.router)                              # GET /api/v1/debug/stats
 app.include_router(websocket.router)                          # WS  /ws/dashboard
