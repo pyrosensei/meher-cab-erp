@@ -34,7 +34,7 @@ export function useWebSocket() {
     ws.current.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.stats && data.recent_logs && data.cpu_history) {
+        if (data.stats && data.recent_logs && data.metric_history) {
           setDashboardData(data);
         }
       } catch (err) {

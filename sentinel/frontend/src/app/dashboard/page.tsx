@@ -4,7 +4,7 @@ import { useAppStore } from "@/lib/store";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Activity, Cpu, Database, ServerCrash } from "lucide-react";
+import { Car, Users, Clock, IndianRupee, ServerCrash, Database } from "lucide-react";
 import { motion } from "framer-motion";
 
 function KpiCard({ title, value, unit = "", icon: Icon, delay }: { title: string, value: number, unit?: string, icon: any, delay: number }) {
@@ -36,7 +36,7 @@ function KpiCard({ title, value, unit = "", icon: Icon, delay }: { title: string
 
 export default function DashboardOverview() {
   const stats = useAppStore((state) => state.stats);
-  const cpuHistory = useAppStore((state) => state.cpuHistory);
+  const metricHistory = useAppStore((state) => state.metricHistory);
 
   return (
     <div className="space-y-6">
@@ -46,20 +46,20 @@ export default function DashboardOverview() {
         className="flex items-center justify-between"
       >
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">System Overview</h2>
-          <p className="text-sm text-muted-foreground">Real-time metrics from the mock container</p>
+          <h2 className="text-2xl font-bold tracking-tight">Fleet Operations</h2>
+          <p className="text-sm text-muted-foreground">Real-time cab fleet telemetry from Delhi NCR</p>
         </div>
         <div className="flex items-center gap-2 bg-background border border-border px-3 py-1.5 rounded-full shadow-sm text-sm font-medium">
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          Connected
+          Live Feed
         </div>
       </motion.div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard title="Avg CPU (5m)" value={stats.avg_cpu} unit="%" icon={Cpu} delay={0.1} />
-        <KpiCard title="Avg Memory (5m)" value={stats.avg_memory} unit="%" icon={Activity} delay={0.2} />
-        <KpiCard title="Recent Errors" value={stats.error_count} icon={ServerCrash} delay={0.3} />
-        <KpiCard title="Docs Ingested" value={stats.total_docs} icon={Database} delay={0.4} />
+        <KpiCard title="Active Trips" value={stats.avg_active_trips} icon={Car} delay={0.1} />
+        <KpiCard title="Fleet Health" value={stats.avg_fleet_health} unit="%" icon={Users} delay={0.2} />
+        <KpiCard title="Drivers Online" value={stats.avg_drivers_online} icon={Clock} delay={0.3} />
+        <KpiCard title="Revenue / Hr" value={stats.avg_revenue_per_hour} unit="₹" icon={IndianRupee} delay={0.4} />
       </div>
 
       <motion.div
@@ -69,18 +69,18 @@ export default function DashboardOverview() {
       >
         <Card>
           <CardHeader>
-            <CardTitle>Resource Utilisation</CardTitle>
+            <CardTitle>Fleet Metrics Over Time</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[350px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={cpuHistory} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <AreaChart data={metricHistory} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorTrips" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3}/>
                       <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
                     </linearGradient>
-                    <linearGradient id="colorMem" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorHealth" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
                       <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
                     </linearGradient>
@@ -105,22 +105,22 @@ export default function DashboardOverview() {
                   />
                   <Area 
                     type="monotone" 
-                    dataKey="cpu" 
-                    name="CPU %"
+                    dataKey="active_trips" 
+                    name="Active Trips"
                     stroke="#0ea5e9" 
                     strokeWidth={2}
                     fillOpacity={1} 
-                    fill="url(#colorCpu)" 
+                    fill="url(#colorTrips)" 
                     isAnimationActive={false}
                   />
                   <Area 
                     type="monotone" 
-                    dataKey="mem" 
-                    name="Memory %"
+                    dataKey="fleet_health" 
+                    name="Fleet Health %"
                     stroke="#8b5cf6" 
                     strokeWidth={2}
                     fillOpacity={1} 
-                    fill="url(#colorMem)" 
+                    fill="url(#colorHealth)" 
                     isAnimationActive={false}
                   />
                 </AreaChart>
@@ -129,6 +129,11 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
       </motion.div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <KpiCard title="Recent Errors" value={stats.error_count} icon={ServerCrash} delay={0.6} />
+        <KpiCard title="Docs Ingested" value={stats.total_docs} icon={Database} delay={0.7} />
+      </div>
     </div>
   );
 }

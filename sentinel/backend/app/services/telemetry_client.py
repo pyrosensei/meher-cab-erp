@@ -60,8 +60,9 @@ class TelemetryClient:
         Fetch the current metric snapshot from the mock container.
 
         Returns a dict:
-            { "cpu_percent": float, "memory_percent": float,
-              "latency_ms": float, "requests_per_second": float,
+            { "active_trips": int, "fleet_health_score": float,
+              "driver_online_count": int, "avg_wait_time_min": float,
+              "revenue_per_hour": float, "trip_completion_rate": float,
               "timestamp": "<ISO8601>" }
 
         Returns None on any error.

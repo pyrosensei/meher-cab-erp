@@ -38,14 +38,17 @@ from app.vectorstore.chroma import total_docs, upsert_chunks
 # loop, so reading from async WS handlers is safe (single-threaded event loop).
 
 rolling_stats: dict[str, Any] = {
-    "avg_cpu": 0.0,
-    "avg_memory": 0.0,
-    "avg_latency": 0.0,
+    "avg_active_trips": 0.0,
+    "avg_fleet_health": 0.0,
+    "avg_wait_time": 0.0,
+    "avg_revenue_per_hour": 0.0,
+    "avg_trip_completion": 0.0,
+    "avg_drivers_online": 0.0,
     "error_count": 0,
     "total_docs": 0,
     "last_updated": None,
-    "recent_logs": [],      # Last 50 log entries for the live feed
-    "cpu_history": [],      # Last 60 metric snapshots for the chart
+    "recent_logs": [],          # Last 50 log entries for the live feed
+    "metric_history": [],       # Last 30 metric snapshots for the chart
 }
 
 # Internal ring buffers (not exposed to callers)
@@ -142,11 +145,13 @@ async def _do_ingest() -> None:
     if metrics:
         ts = metrics.get("timestamp", datetime.now(timezone.utc).isoformat())
         text = (
-            f"Metrics snapshot at {ts}: "
-            f"CPU={metrics['cpu_percent']}%, "
-            f"Memory={metrics['memory_percent']}%, "
-            f"Latency={metrics['latency_ms']}ms, "
-            f"RPS={metrics['requests_per_second']}"
+            f"Fleet KPI snapshot at {ts}: "
+            f"Active trips={metrics['active_trips']}, "
+            f"Fleet health={metrics['fleet_health_score']}%, "
+            f"Drivers online={metrics['driver_online_count']}, "
+            f"Avg wait={metrics['avg_wait_time_min']}min, "
+            f"Revenue/hr=₹{metrics['revenue_per_hour']}, "
+            f"Trip completion={metrics['trip_completion_rate']}%"
         )
         chunk_id = f"metric_{uuid.uuid4().hex[:16]}"
         chunks_to_upsert.append({
@@ -155,9 +160,12 @@ async def _do_ingest() -> None:
             "metadata": {
                 "type": "metrics",
                 "timestamp": ts,
-                "cpu": metrics["cpu_percent"],
-                "memory": metrics["memory_percent"],
-                "latency": metrics["latency_ms"],
+                "active_trips": metrics["active_trips"],
+                "fleet_health": metrics["fleet_health_score"],
+                "drivers_online": metrics["driver_online_count"],
+                "avg_wait_min": metrics["avg_wait_time_min"],
+                "revenue_per_hour": metrics["revenue_per_hour"],
+                "trip_completion_rate": metrics["trip_completion_rate"],
             },
         })
 
@@ -186,12 +194,18 @@ def _recompute_stats() -> None:
     """
     # Averages from the metric window
     if _metric_window:
-        cpu_vals = [m["cpu_percent"] for m in _metric_window]
-        mem_vals = [m["memory_percent"] for m in _metric_window]
-        lat_vals = [m["latency_ms"] for m in _metric_window]
-        rolling_stats["avg_cpu"] = round(sum(cpu_vals) / len(cpu_vals), 1)
-        rolling_stats["avg_memory"] = round(sum(mem_vals) / len(mem_vals), 1)
-        rolling_stats["avg_latency"] = round(sum(lat_vals) / len(lat_vals), 1)
+        trips_vals = [m["active_trips"] for m in _metric_window]
+        health_vals = [m["fleet_health_score"] for m in _metric_window]
+        wait_vals = [m["avg_wait_time_min"] for m in _metric_window]
+        rev_vals = [m["revenue_per_hour"] for m in _metric_window]
+        rate_vals = [m["trip_completion_rate"] for m in _metric_window]
+        driver_vals = [m["driver_online_count"] for m in _metric_window]
+        rolling_stats["avg_active_trips"] = round(sum(trips_vals) / len(trips_vals), 1)
+        rolling_stats["avg_fleet_health"] = round(sum(health_vals) / len(health_vals), 1)
+        rolling_stats["avg_wait_time"] = round(sum(wait_vals) / len(wait_vals), 1)
+        rolling_stats["avg_revenue_per_hour"] = round(sum(rev_vals) / len(rev_vals), 1)
+        rolling_stats["avg_trip_completion"] = round(sum(rate_vals) / len(rate_vals), 1)
+        rolling_stats["avg_drivers_online"] = round(sum(driver_vals) / len(driver_vals), 1)
 
     # Error count across the recent log window
     rolling_stats["error_count"] = sum(
@@ -204,13 +218,14 @@ def _recompute_stats() -> None:
     # Recent log entries for the live telemetry feed
     rolling_stats["recent_logs"] = list(_log_window)
 
-    # CPU+memory history for the dashboard chart (last 30 data points)
+    # Metric history for the dashboard chart (last 30 data points)
     window = list(_metric_window)[-30:]
-    rolling_stats["cpu_history"] = [
+    rolling_stats["metric_history"] = [
         {
             "t": m["timestamp"][11:19],  # Extract HH:MM:SS from ISO string
-            "cpu": m["cpu_percent"],
-            "mem": m["memory_percent"],
+            "active_trips": m["active_trips"],
+            "fleet_health": m["fleet_health_score"],
+            "revenue_per_hour": m["revenue_per_hour"],
         }
         for m in window
     ]

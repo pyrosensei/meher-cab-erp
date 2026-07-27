@@ -43,11 +43,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         className="flex-shrink-0 bg-background border-r border-border flex flex-col z-20 relative"
       >
         <div className="h-16 flex items-center justify-between px-4 border-b border-border">
-          <div className="flex items-center gap-3 overflow-hidden whitespace-nowrap">
-            <div className="h-8 w-8 bg-foreground rounded-lg flex items-center justify-center shrink-0">
-              <Shield className="h-4 w-4 text-background" />
+            <div className="flex items-center gap-3 overflow-hidden whitespace-nowrap">
+            <div className="h-8 w-8 rounded-lg overflow-hidden shrink-0 bg-white border border-border">
+              <img src="/logo.png" alt="Meher Cabs" className="h-full w-full object-contain p-0.5" />
             </div>
-            {!sidebarCollapsed && <span className="font-bold tracking-tight text-lg">Sentinel</span>}
+            {!sidebarCollapsed && <span className="font-bold tracking-tight text-lg">Meher Cabs</span>}
           </div>
           <button 
             onClick={toggleSidebar}

@@ -102,3 +102,31 @@ chroma_db/
 
 # typescript
 *.tsbuildinfo
+
+# docker
+docker-data/
+*.vhdx
+*.vmdk
+*.vhd
+
+# sentinel-specific
+sentinel/backend/chroma_db/
+sentinel/backend/sentinel.db
+sentinel/frontend/.next/
+sentinel/frontend/out/
+
+# local logs
+logs/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini

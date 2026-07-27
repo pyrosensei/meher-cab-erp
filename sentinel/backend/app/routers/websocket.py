@@ -53,15 +53,18 @@ async def dashboard_websocket(
             # the ingestion scheduler (which is running in the same event loop)
             payload = {
                 "stats": {
-                    "avg_cpu": rolling_stats["avg_cpu"],
-                    "avg_memory": rolling_stats["avg_memory"],
-                    "avg_latency": rolling_stats["avg_latency"],
+                    "avg_active_trips": rolling_stats["avg_active_trips"],
+                    "avg_fleet_health": rolling_stats["avg_fleet_health"],
+                    "avg_wait_time": rolling_stats["avg_wait_time"],
+                    "avg_revenue_per_hour": rolling_stats["avg_revenue_per_hour"],
+                    "avg_trip_completion": rolling_stats["avg_trip_completion"],
+                    "avg_drivers_online": rolling_stats["avg_drivers_online"],
                     "error_count": rolling_stats["error_count"],
                     "total_docs": rolling_stats["total_docs"],
                     "last_updated": rolling_stats["last_updated"],
                 },
                 "recent_logs": rolling_stats["recent_logs"],
-                "cpu_history": rolling_stats["cpu_history"],
+                "metric_history": rolling_stats["metric_history"],
             }
 
             await websocket.send_text(json.dumps(payload))

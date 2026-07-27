@@ -9,14 +9,18 @@ export interface LogEntry {
 
 export interface MetricSnapshot {
   t: string;
-  cpu: number;
-  mem: number;
+  active_trips: number;
+  fleet_health: number;
+  revenue_per_hour: number;
 }
 
 export interface DashboardStats {
-  avg_cpu: number;
-  avg_memory: number;
-  avg_latency: number;
+  avg_active_trips: number;
+  avg_fleet_health: number;
+  avg_wait_time: number;
+  avg_revenue_per_hour: number;
+  avg_trip_completion: number;
+  avg_drivers_online: number;
   error_count: number;
   total_docs: number;
   last_updated: string | null;
@@ -29,10 +33,10 @@ interface AppState {
   // Dashboard Live State
   stats: DashboardStats;
   recentLogs: LogEntry[];
-  cpuHistory: MetricSnapshot[];
+  metricHistory: MetricSnapshot[];
   
   // Setters for WS push
-  setDashboardData: (data: { stats: DashboardStats; recent_logs: LogEntry[]; cpu_history: MetricSnapshot[] }) => void;
+  setDashboardData: (data: { stats: DashboardStats; recent_logs: LogEntry[]; metric_history: MetricSnapshot[] }) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -40,19 +44,22 @@ export const useAppStore = create<AppState>((set) => ({
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   
   stats: {
-    avg_cpu: 0,
-    avg_memory: 0,
-    avg_latency: 0,
+    avg_active_trips: 0,
+    avg_fleet_health: 0,
+    avg_wait_time: 0,
+    avg_revenue_per_hour: 0,
+    avg_trip_completion: 0,
+    avg_drivers_online: 0,
     error_count: 0,
     total_docs: 0,
     last_updated: null,
   },
   recentLogs: [],
-  cpuHistory: [],
+  metricHistory: [],
   
   setDashboardData: (data) => set({
     stats: data.stats,
     recentLogs: data.recent_logs,
-    cpuHistory: data.cpu_history,
+    metricHistory: data.metric_history,
   }),
 }));

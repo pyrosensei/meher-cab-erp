@@ -1,18 +1,13 @@
 """
-mock-container/main.py
-======================
-Synthetic telemetry generator for the Sentinel demo.
+sentinel/mock-container/main.py
+===============================
+Cab fleet telemetry generator simulating a real operations center
+for Meher Cab ERP in Delhi NCR.
 
-This service runs as a separate container and continuously generates:
-  - Realistic log lines (INFO / WARNING / ERROR) with varied messages
-  - Metric snapshots (CPU %, memory %, request latency, RPS)
-  - Occasional injected spikes so there's always something interesting
-    for the RAG chatbot to find
-
-Clients poll:
-  GET /logs?since=<unix_timestamp>  → returns new log entries since that time
-  GET /metrics                       → returns the current metric snapshot
-  GET /health                        → liveness check
+Endpoints:
+  GET /health  → liveness check
+  GET /logs    → fleet operation log entries
+  GET /metrics → cab-fleet KPI snapshot
 """
 
 import os
@@ -24,101 +19,301 @@ from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, Query
-from pydantic import BaseModel
 
 # ── App ────────────────────────────────────────────────────────────────────
-app = FastAPI(title="Sentinel Mock Telemetry Container", version="1.0.0")
+app = FastAPI(title="Meher Cab Fleet Telemetry", version="2.0.0")
 
-# ── In-memory buffers (thread-safe access via locks) ───────────────────────
-_logs: list[dict] = []          # Rolling log buffer (capped at MAX_LOGS)
-_metrics: dict = {}             # Latest metric snapshot
+# ── In-memory buffers ──────────────────────────────────────────────────────
+_logs: list[dict] = []
+_metrics: dict = {}
 _logs_lock = threading.Lock()
 _metrics_lock = threading.Lock()
 
-MAX_LOGS = 10_000               # Keep at most 10 000 entries in memory
+MAX_LOGS = 10_000
 
-# ── Realistic log message templates by severity ────────────────────────────
+# ── Delhi NCR cab fleet data ───────────────────────────────────────────────
+
+DRIVERS = [
+    "Amit Kumar", "Rahul Singh", "Suresh Sharma", "Vikram Verma",
+    "Pradeep Gupta", "Manoj Yadav", "Rajesh Chauhan", "Sanjay Joshi",
+    "Deepak Pandey", "Arun Mishra", "Vinod Tiwari", "Ramesh Rawat",
+    "Naveen Negi", "Rohit Malik", "Sunil Saini", "Ajay Choudhary",
+    "Prakash Thakur", "Ravi Bhat", "Ashok Reddy", "Vikas Iyer",
+    "Dinesh Mehta", "Mukesh Patel", "Santosh Srivastava", "Bharat Dwivedi",
+    "Gopal Saxena", "Kishan Agarwal", "Mohan Kapoor", "Naresh Sethi",
+    "Pawan Arora", "Tarun Batra",
+]
+
+VEHICLES = [
+    ("DL 1C A 1001", "Maruti Suzuki", "Swift Dzire", "White"),
+    ("DL 2C B 2034", "Hyundai", "Aura", "Silver"),
+    ("DL 3C C 3421", "Toyota", "Innova Crysta", "Black"),
+    ("DL 4C D 4567", "Honda", "City", "Grey"),
+    ("DL 5C E 5842", "Tata", "Nexon EV", "Blue"),
+    ("DL 6C F 6123", "Mahindra", "XUV700", "Red"),
+    ("DL 7C G 7890", "Kia", "Seltos", "White"),
+    ("DL 8C H 8345", "MG", "Hector", "Silver"),
+    ("DL 9C I 9012", "Volkswagen", "Virtus", "Black"),
+    ("DL 1C J 1122", "Skoda", "Slavia", "Grey"),
+    ("DL 2C K 2233", "Maruti Suzuki", "Ertiga", "Blue"),
+    ("DL 3C L 3344", "Hyundai", "Creta", "Red"),
+    ("DL 4C M 4455", "Toyota", "Fortuner", "White"),
+    ("DL 5C N 5566", "Honda", "Amaze", "Silver"),
+    ("DL 6C O 6677", "Tata", "Tigor EV", "Black"),
+    ("DL 7C P 7788", "Mahindra", "Scorpio N", "Grey"),
+    ("DL 8C Q 8899", "Maruti Suzuki", "Baleno", "Blue"),
+    ("DL 9C R 9900", "Hyundai", "Verna", "Red"),
+    ("DL 1C S 1010", "Kia", "Carens", "White"),
+    ("DL 2C T 2121", "Maruti Suzuki", "Brezza", "Silver"),
+    ("DL 3C U 3232", "Hyundai", "i20", "Black"),
+    ("DL 4C V 4343", "Hyundai", "Venue", "Grey"),
+    ("DL 5C W 5454", "Toyota", "Glanza", "Blue"),
+    ("DL 6C X 6565", "Maruti Suzuki", "Ciaz", "Red"),
+    ("DL 7C Y 7676", "Maruti Suzuki", "Suzuki", "White"),
+]
+
+CUSTOMERS = [
+    "Priya Sharma", "Arun Verma", "Neha Gupta", "Ravi Patel",
+    "Sneha Reddy", "Vijay Singh", "Pooja Mehta", "Ankit Jain",
+    "Kavita Nair", "Rohit Khanna", "Deepa Iyer", "Manoj Saxena",
+    "Anjali Desai", "Siddharth Rao", "Meera Choudhury", "Karan Bajaj",
+    "Divya Menon", "Aditya Pandit", "Ritu Kapoor", "Gaurav Bhatia",
+    "Swati Mishra", "Harsh Agarwal", "Nidhi Tiwari", "Sahil Sethi",
+    "Isha Chauhan", "Pranav Joshi", "Shreya Arora", "Dhruv Malhotra",
+    "Tanya Kaur", "Abhishek Sinha",
+]
+
+PICKUP_LOCATIONS = [
+    "Connaught Place", "Karol Bagh", "Lajpat Nagar", "Saket",
+    "Dwarka Sector 12", "Rohini Sector 7", "Pitampura", "Janakpuri",
+    "Vasant Kunj", "Greater Kailash I", "Hauz Khas Village",
+    "Nehru Place", "Rajouri Garden", "Patel Nagar", "Moti Nagar",
+    "Punjabi Bagh Club Road", "Model Town", "Civil Lines Metro",
+    "Chandni Chowk", "Paharganj Railway Station",
+    "Noida Sector 18 Market", "Noida Sector 62",
+    "Gurugram Sector 29", "Gurugram DLF Phase 3",
+    "Faridabad NIT", "Ghaziabad Indirapuram",
+    "Mayur Vihar Phase 1", "Preet Vihar",
+    "Vasant Vihar", "Defence Colony Market",
+    "Laxmi Nagar Metro", "Kashmere Gate ISBT",
+    "Aerocity", "IGI Airport T3", "Anand Vihar Terminal",
+]
+
+DROP_LOCATIONS = [
+    "Cyber Hub Gurugram", "Okhla Phase 2", "Noida Sector 44",
+    "Gurugram Udyog Vihar", "Saket Select Citywalk",
+    "Dwarka Sector 21 Metro", "Rohini West Metro",
+    "Vasant Kunj Ambience Mall", "Greater Kailash M Block",
+    "Hauz Khas Fort", "Nehru Place Metro", "Rajouri Garden Pacific Mall",
+    "Patel Nagar Metro", "Punjabi Bagh West", "Model Town 3",
+    "Civil Lines", "Chandni Chowk Red Fort",
+    "Noida Sector 15 Metro", "Noida Sector 16 Stadium",
+    "Gurugram MG Road", "Gurugram Golf Course Road",
+    "Faridabad Sector 12", "Ghaziabad Kavi Nagar",
+    "Mayur Vihar Pocket 1", "Preet Vihar Metro",
+    "Vasant Vihar Japanese Park", "Defence Colony Flyover",
+    "Aerocity Mahipalpur", "IGI Airport T1", "Sarojini Nagar Market",
+    "India Gate", "Lodhi Garden",
+]
+
+TRIP_STATUS_EVENTS = [
+    "Trip {trip_id} started: {driver} in {vehicle} picked up customer {customer} from {pickup} \u2192 {drop}",
+    "Trip {trip_id} en route: {driver} travelling from {pickup} towards {drop} — ETA {eta}",
+    "Trip {trip_id} completed: {driver} dropped {customer} at {drop} — fare {fare} | distance {dist} km | rating {rating}",
+    "Trip {trip_id} cancelled: {customer} cancelled after {wait} min wait — driver {driver} en route",
+    "Trip {trip_id} diverted: {driver} rerouted via {alt_route} due to traffic near {location}",
+    "Trip {trip_id} extended: {customer} requested additional stop at {stop} before {drop}",
+    "Trip {trip_id} waiting: {driver} arrived at {pickup} — {customer} notified, ETA to passenger {wait} min",
+]
+
+FLEET_EVENTS = [
+    "Vehicle {vehicle} fuel level critical: {fuel}% — directing {driver} to nearest pump in {area}",
+    "Maintenance alert: {vehicle} ({make} {model}) due for service at {km} km — next service {days}d",
+    "GPS signal lost on {vehicle} at {location} — last known position lat {lat}, lng {lng}",
+    "Insurance expiry reminder: {vehicle} insurance expires in {days} days — renewal required",
+    "Speed violation: {vehicle} clocked at {speed} km/h in zone near {location} — driver {driver} warned",
+    "Battery low warning: {vehicle} ({model}) at {fuel}% charge — pulling into {location} charging station",
+    "Driver check-in: {driver} marked online from {location} — assigned zone {zone}",
+    "Driver break: {driver} going off-duty near {location} — replacement needed for zone {zone}",
+    "Idle vehicle: {vehicle} stationary for {mins} min at {location} — driver {driver} may be on break",
+    "Decongestion signal: {vehicle} re-routed from {location} to avoid 2 km jam on {road}",
+    "Rider complaint logged: {customer} reported {issue} in {vehicle} ({make} {model}) — driver {driver}",
+]
+
+SYSTEM_EVENTS = [
+    "Fleet backend: dispatch optimization cycle completed — {trips} trips assigned in {ms}ms",
+    "Payment gateway: invoice {txn} settled for trip {trip_id} — amount {amount}",
+    "Fleet backend: surge pricing active in zone {zone} — multiplier x{mult}",
+    "Analytics: daily fleet report generated — {trips} trips | {rev} revenue | {rate}% completion",
+    "Fleet backend: driver {driver} incentive of {amount} credited for completing {trips} trips today",
+    "SMS gateway: OTP sent to {customer} for trip {trip_id}",
+    "Fleet backend: new ride request #{req_id} — {customer} from {pickup} to {drop}",
+    "Fleet backend: driver {driver} accepted trip {trip_id} — {pickup} \u2192 {drop}",
+    "Support ticket #{ticket} opened: {customer} reported lost item in {vehicle}",
+    "Rate update: base fare revised to {base_amt} for zone {zone} effective tomorrow",
+]
+
+KPI_METRICS = [
+    "KPI snapshot :: active_trips={active} fleet_health={health} drivers_online={online} avg_wait={wait}min rev_hr={rev} trip_rate={rate}%",
+]
+
+def _pick_driver() -> str:
+    return random.choice(DRIVERS)
+
+def _pick_vehicle() -> tuple[str, str, str, str]:
+    return random.choice(VEHICLES)
+
+def _pick_customer() -> str:
+    return random.choice(CUSTOMERS)
+
+def _pick_pickup() -> str:
+    return random.choice(PICKUP_LOCATIONS)
+
+def _pick_drop() -> str:
+    return random.choice(DROP_LOCATIONS)
+
+def _trip_id() -> str:
+    return f"TRP-{random.randint(1000, 9999)}"
+
+def _req_id() -> str:
+    return f"REQ-{random.randint(10000, 99999)}"
+
+def _txn_id() -> str:
+    return f"TXN{random.randint(100000, 999999)}"
+
+def _ticket_id() -> str:
+    return f"TKT-{random.randint(10000, 99999)}"
+
+
 LOG_TEMPLATES: dict[str, list[str]] = {
     "INFO": [
-        "Request processed: GET /api/products → 200 OK in {a}ms",
-        "User authenticated successfully for user_id={a}",
-        "Database query returned {a} rows in {b}ms",
-        "Cache HIT for key=product_catalog_{a}",
-        "Cache MISS for key=session_{a}, fetching from DB",
-        "Scheduled job 'cleanup_sessions' completed ({a} rows removed)",
-        "New TCP connection from 192.168.1.{a}",
-        "Health check passed (uptime {a}s)",
-        "Metric export completed: {a} data points sent to collector",
-        "Worker thread-{a} started, pool size now {b}",
-        "Rate limit counter reset for client_id={a}",
-        "Background job 'prune_logs' started",
-        "TLS certificate valid, expires in {a} days",
-        "Config reload triggered — {a} settings updated",
-        "Request queue depth: {a} pending",
+        *TRIP_STATUS_EVENTS,
+        *[e for e in FLEET_EVENTS if "critical" not in e.lower() and "violation" not in e.lower() and "lost" not in e.lower()],
+        *[e for e in SYSTEM_EVENTS if "surge" not in e.lower()],
+        *KPI_METRICS,
     ],
     "WARNING": [
-        "High memory usage detected: {a}% (threshold: 70%)",
-        "Response time exceeded SLA threshold: {a}ms (limit: 200ms)",
-        "Rate limit approaching for client IP 10.0.0.{a}: {b}/100 req",
-        "Retry attempt {a}/3 for failed DB query (will retry in {b}ms)",
-        "Connection pool at {a}% capacity ({b}/100 connections used)",
-        "Disk space below 20%: {a}GB remaining",
-        "Deprecated API endpoint called: /api/v1/legacy (client: {a})",
-        "Cache eviction triggered: {a} items removed due to memory pressure",
-        "External service 'payment-gateway' latency elevated: {a}ms",
-        "Worker-{a} queue backlog: {b} messages pending",
+        *[e for e in FLEET_EVENTS if any(w in e.lower() for w in ("critical", "violation", "lost", "low", "idle", "decongestion", "complaint"))],
+        "Surge pricing active in zone {zone} — multiplier x{mult}",
+        "Driver {driver} completion rate dropped to {rate}% — below threshold of 85%",
+        "Peak hour traffic detected near {location} — fleet rerouting {count} vehicles",
+        "Driver {driver} acceptance rate at {rate}% — approaching minimum threshold",
+        "Vehicle {vehicle} AC malfunction reported by {customer} — scheduling service",
+        "Ride request #{req_id} unassigned for {wait}s — escalating to supervisor",
+        "Driver {driver} reported road closure at {location} — trip {trip_id} affected",
     ],
     "ERROR": [
-        "Database connection timeout after {a}ms — pool exhausted",
-        "Unhandled exception in worker-{a}: NullPointerException at line {b}",
-        "Authentication failed for user_id={a}: invalid token",
-        "External API call to 'payment-gateway' failed: HTTP 503",
-        "Message queue overflow: {a} messages dropped",
-        "Circuit breaker OPEN for service 'inventory-service'",
-        "Failed to acquire lock for resource '{a}' after {b}ms",
-        "Out of memory error in heap allocation: requested {a}MB",
-        "SSL handshake failed with peer 203.0.113.{a}",
-        "Write-ahead log corruption detected — initiating recovery",
+        "Trip {trip_id} abandoned: {driver} cancelled mid-trip — {customer} stranded at {location}",
+        "CRITICAL: GPS outage in {location} zone — {count} vehicles offline",
+        "CRITICAL: Payment gateway timeout for trip {trip_id} — amount {amount} at risk",
+        "CRITICAL: Fleet dispatch service down — failover initiated, {count} requests queued",
+        "Driver {driver} involved in incident near {location} — emergency protocols activated",
+        "Database connection lost in dispatch service — retry {retry}/5",
+        "Vehicle {vehicle} engine trouble reported — towing required from {location}",
+        "CRITICAL: Surge pricing engine miscalculation — correcting {count} trip fares",
+        "Billing reconciliation failed for trip {trip_id} ({customer}) — mismatch of {amount}",
+        "CRITICAL: Driver SDK mass disconnect — {count} drivers lost heartbeat",
     ],
 }
 
-# Spike injection messages (make the AI assistant have something juicy)
 SPIKE_MESSAGES = {
     "ERROR": [
-        "CRITICAL: Database primary node unreachable — failing over to replica",
-        "CRITICAL: Memory leak detected — heap usage at {a}% and climbing",
-        "CRITICAL: Cascading failure in microservice mesh — {a} services affected",
+        "CRITICAL: Fleet dispatch DB primary down — all trip assignment failing over",
+        "CRITICAL: Widespread GPS blackout across Delhi NCR — {count} vehicles untracked",
+        "CRITICAL: Driver app crash loop detected — {count} drivers affected, version 3.2.1 rolled back",
     ],
     "WARNING": [
-        "ALERT: CPU spike to {a}% — investigating root cause",
-        "ALERT: Request queue depth exceeded safe limit: {a} pending",
+        "ALERT: Trip completion rate dropped to {rate}% in last 15 min — ops team notified",
+        "ALERT: Average wait time spiked to {wait} min — surge pricing activating in {zone}",
+        "ALERT: {count} ride requests timing out simultaneously in {location} — checking dispatch",
     ],
 }
 
 
+def _location_tag() -> str:
+    return random.choice(PICKUP_LOCATIONS + DROP_LOCATIONS)
+
 def _fill(template: str) -> str:
-    """Fill {a}, {b} placeholders with random integers for realistic variety."""
-    return template.format(a=random.randint(1, 999), b=random.randint(1, 999))
+    if template.startswith("KPI snapshot"):
+        return template.format(
+            active=random.randint(18, 45),
+            health=round(random.uniform(82.0, 98.5), 1),
+            online=random.randint(20, 30),
+            wait=round(random.uniform(2.5, 12.0), 1),
+            rev=round(random.uniform(450, 1200), 0),
+            rate=round(random.uniform(88.0, 99.0), 1),
+        )
+
+    vehicle, make, model, color = _pick_vehicle()
+    driver = _pick_driver()
+    customer = _pick_customer()
+    pickup = _pick_pickup()
+    drop = _pick_drop()
+    trip = _trip_id()
+    req = _req_id()
+    txn = _txn_id()
+    ticket = _ticket_id()
+    location = _location_tag()
+
+    fields = {
+        "trip_id": trip,
+        "driver": driver,
+        "vehicle": vehicle,
+        "make": make,
+        "model": model,
+        "color": color,
+        "customer": customer,
+        "pickup": pickup,
+        "drop": drop,
+        "location": location,
+        "eta": f"{random.randint(5, 25)} min",
+        "fare": f"\u20b9{random.randint(180, 1200)}",
+        "dist": random.randint(3, 45),
+        "rating": f"{random.uniform(3.5, 5.0):.1f}\u2605",
+        "wait": random.randint(1, 15),
+        "alt_route": random.choice(["NH-44", "Eastern Peripheral", "Dwarka Expressway", "Outer Ring Road", "Ghazipur Flyover"]),
+        "stop": _pick_drop(),
+        "fuel": random.randint(5, 25),
+        "area": _pick_pickup(),
+        "days": random.randint(1, 60),
+        "km": random.randint(15000, 120000),
+        "lat": f"{28.4 + random.random() * 0.5:.4f}",
+        "lng": f"{77.0 + random.random() * 0.4:.4f}",
+        "speed": random.randint(45, 110),
+        "mins": random.randint(5, 35),
+        "zone": random.choice(["Zone-A", "Zone-B", "Zone-C", "Zone-D", "Zone-E"]),
+        "road": random.choice(["Ring Road", "NH-24", "GT Karnal Road", "Mathura Road", "Sohna Road", "MG Road"]),
+        "issue": random.choice(["rough driving", "AC not cooling", "detour without asking", "smell in car", "late pickup"]),
+        "mult": f"{random.uniform(1.2, 2.5):.1f}",
+        "ms": random.randint(25, 850),
+        "trips": random.randint(50, 350),
+        "amount": f"\u20b9{random.randint(5000, 25000)}",
+        "rev": f"\u20b9{random.randint(30000, 150000)}",
+        "rate": random.randint(75, 98),
+        "req_id": req,
+        "txn": txn,
+        "ticket": ticket,
+        "retry": random.randint(1, 3),
+        "count": random.randint(3, 25),
+        "base_amt": f"\u20b9{(25 + random.choice([0, 5, 10]))}",
+        "wait_s": random.randint(30, 180),
+        "wait": random.randint(3, 15),
+        "route": random.choice(["NH-44", "Eastern Peripheral Expressway", "Dwarka Expressway"]),
+    }
+
+    return template.format(**fields)
 
 
-def _generate_log(force_error: bool = False) -> dict:
-    """
-    Generate a single log entry dict.
-
-    Weights:  INFO 70% | WARNING 20% | ERROR 10%
-    5% chance of a 'spike' — a more dramatic message injected to give
-    the chatbot something interesting to surface.
-    """
-    # Decide level
-    if force_error:
-        level = "ERROR"
+def _generate_log(force_spike: bool = False) -> dict:
+    if force_spike:
+        level = random.choices(["ERROR", "WARNING"], weights=[0.6, 0.4])[0]
     else:
-        level = random.choices(["INFO", "WARNING", "ERROR"], weights=[0.70, 0.20, 0.10])[0]
+        level = random.choices(["INFO", "WARNING", "ERROR"], weights=[0.60, 0.25, 0.15])[0]
 
-    # Occasionally inject a spike message
-    is_spike = random.random() < 0.05 and level in SPIKE_MESSAGES
-    if is_spike:
+    is_spike = False
+    if random.random() < 0.04 and level in SPIKE_MESSAGES:
         templates = SPIKE_MESSAGES[level]
+        is_spike = True
     else:
         templates = LOG_TEMPLATES[level]
 
@@ -128,63 +323,44 @@ def _generate_log(force_error: bool = False) -> dict:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "level": level,
         "message": message,
-        "service": "mock-service",
+        "service": "cab-fleet",
         "is_spike": is_spike,
     }
 
 
 def _generate_metrics() -> dict:
-    """
-    Generate a metric snapshot using a random-walk with mean reversion
-    so values feel natural and correlated over time.
-
-    Occasional spikes are injected to make the dashboard interesting.
-    """
     with _metrics_lock:
         prev = _metrics.copy() if _metrics else {
-            "cpu_percent": 25.0,
-            "memory_percent": 48.0,
-            "latency_ms": 55.0,
-            "requests_per_second": 12.0,
+            "active_trips": 28.0,
+            "fleet_health_score": 92.5,
+            "driver_online_count": 24.0,
+            "avg_wait_time_min": 4.5,
+            "revenue_per_hour": 780.0,
+            "trip_completion_rate": 96.2,
         }
 
-    # ── CPU: mean-reverting to ~30%, occasional spike to 70-95% ──────────
-    if random.random() < 0.04:              # 4% chance of CPU spike
-        cpu = random.uniform(70.0, 95.0)
-    else:
-        cpu = prev["cpu_percent"] + random.gauss(0, 3)
-        cpu = max(5.0, min(95.0, cpu))
+    spike = random.random() < 0.04
+    dip = random.random() < 0.03
 
-    # ── Memory: slow drift up, GC-style drop ~2% of the time ─────────────
-    if random.random() < 0.02:             # 2% chance of GC collection
-        mem = random.uniform(30.0, 45.0)
-    else:
-        mem = prev["memory_percent"] + random.gauss(0.3, 1.5)
-        mem = max(20.0, min(92.0, mem))
-
-    # ── Latency: correlated with CPU (higher CPU → higher latency) ────────
-    base_latency = 25.0 + (cpu / 100.0) * 200.0
-    latency = max(5.0, base_latency + random.gauss(0, 15))
-
-    # ── RPS: inversely correlated with latency ────────────────────────────
-    rps = max(0.0, 22.0 - (latency / 100.0) * 4.0 + random.gauss(0, 1.5))
+    active = max(5.0, min(60.0, prev["active_trips"] + random.gauss(0, 4) + (5 if spike else 0) + (-8 if dip else 0)))
+    health = max(65.0, min(99.5, prev["fleet_health_score"] + random.gauss(-0.3, 1.5) + (-15 if dip else 0) + (0 if spike else 0)))
+    online = max(12.0, min(30.0, round(prev["driver_online_count"] + random.gauss(0, 1.5))))
+    wait = max(1.0, min(18.0, prev["avg_wait_time_min"] + random.gauss(0.1, 0.8) + (4 if spike else 0) + (-2 if dip else 0)))
+    rev = max(200.0, min(2000.0, prev["revenue_per_hour"] + random.gauss(0, 50) + (200 if spike else 0) + (-150 if dip else 0)))
+    rate = max(70.0, min(100.0, prev["trip_completion_rate"] + random.gauss(-0.2, 1.2) + (-8 if dip else 0) + (0 if spike else 0)))
 
     return {
-        "cpu_percent": round(cpu, 1),
-        "memory_percent": round(mem, 1),
-        "latency_ms": round(latency, 1),
-        "requests_per_second": round(rps, 1),
+        "active_trips": round(active, 0),
+        "fleet_health_score": round(health, 1),
+        "driver_online_count": round(online, 0),
+        "avg_wait_time_min": round(wait, 1),
+        "revenue_per_hour": round(rev, 0),
+        "trip_completion_rate": round(rate, 1),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
 def _background_generator() -> None:
-    """
-    Background daemon thread:
-    - Emits a new log line every LOG_INTERVAL_SECONDS
-    - Refreshes the metrics snapshot every METRICS_INTERVAL_SECONDS
-    - Every ~60 s injects a burst of ERROR messages for demo-readiness
-    """
     log_interval = float(os.getenv("LOG_INTERVAL_SECONDS", "1.5"))
     metrics_interval = float(os.getenv("METRICS_INTERVAL_SECONDS", "2.0"))
 
@@ -196,14 +372,12 @@ def _background_generator() -> None:
     while True:
         now = time.time()
 
-        # ── Burst mode: inject 5-10 errors in quick succession every ~60 s ──
         if now - last_burst_ts > 60.0 and not burst_mode:
             burst_mode = True
             burst_count = random.randint(5, 10)
             last_burst_ts = now
 
-        # Generate log entry
-        log_entry = _generate_log(force_error=burst_mode)
+        log_entry = _generate_log(force_spike=burst_mode)
         with _logs_lock:
             _logs.append(log_entry)
             if len(_logs) > MAX_LOGS:
@@ -214,7 +388,6 @@ def _background_generator() -> None:
             if burst_count <= 0:
                 burst_mode = False
 
-        # Refresh metrics on its own cadence
         if now - last_metrics_ts >= metrics_interval:
             new_metrics = _generate_metrics()
             with _metrics_lock:
@@ -224,7 +397,6 @@ def _background_generator() -> None:
         time.sleep(log_interval)
 
 
-# ── Start the background generator on module load ─────────────────────────
 _thread = threading.Thread(target=_background_generator, daemon=True)
 _thread.start()
 
@@ -233,8 +405,7 @@ _thread.start()
 
 @app.get("/health")
 def health() -> dict:
-    """Liveness check — used by Docker healthcheck and the backend."""
-    return {"status": "ok", "service": "mock-container"}
+    return {"status": "ok", "service": "cab-fleet-telemetry", "fleet": "Meher Cab ERP Delhi NCR"}
 
 
 @app.get("/logs")
@@ -244,22 +415,10 @@ def get_logs(
         description="Unix timestamp (float). Only return logs newer than this.",
     )
 ) -> dict:
-    """
-    Return log entries from the buffer.
-
-    - If `since` is provided: return only logs with timestamp > since.
-    - If `since` is omitted: return the most recent 50 entries (useful for
-      initial page load or manual inspection).
-
-    The backend calls this every 5 seconds with the Unix timestamp of the
-    last poll so it only receives incremental new data.
-    """
     with _logs_lock:
         if since is None:
             return {"logs": list(_logs[-50:])}
 
-        # Convert the Unix float to an ISO string for direct string comparison
-        # (ISO 8601 strings sort lexicographically when using UTC with the same format)
         since_iso = datetime.fromtimestamp(since, tz=timezone.utc).isoformat()
         filtered = [entry for entry in _logs if entry["timestamp"] > since_iso]
         return {"logs": filtered}
@@ -267,19 +426,19 @@ def get_logs(
 
 @app.get("/metrics")
 def get_metrics() -> dict:
-    """Return the current metric snapshot (CPU, memory, latency, RPS)."""
     with _metrics_lock:
         if not _metrics:
             return {
-                "cpu_percent": 0.0,
-                "memory_percent": 0.0,
-                "latency_ms": 0.0,
-                "requests_per_second": 0.0,
+                "active_trips": 0,
+                "fleet_health_score": 0.0,
+                "driver_online_count": 0,
+                "avg_wait_time_min": 0.0,
+                "revenue_per_hour": 0,
+                "trip_completion_rate": 0.0,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         return dict(_metrics)
 
 
-# ── Entrypoint ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8001, log_level="info")

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -19,6 +19,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
+import { useLiveKPIs } from '@/hooks/useLiveKPIs'
+import { useLiveTrips } from '@/hooks/useLiveTrips'
 
 const aiInsights = [
   "Revenue is up 12% this week — Gurugram routes performing exceptionally well.",
@@ -41,6 +43,9 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 
 export default function DashboardPage() {
   const [insightIndex, setInsightIndex] = useState(0)
+  const kpis = useLiveKPIs()
+  const { trips } = useLiveTrips()
+  const activeTripCount = trips.filter(t => t.status === 'in-progress').length
 
   return (
     <div className="space-y-6">
@@ -82,34 +87,34 @@ export default function DashboardPage() {
       >
         <KpiCard
           title="Today's Revenue"
-          value={87400}
+          value={kpis.revenue.value}
           format="currency"
-          change={12.5}
+          change={kpis.revenue.trend === 'up' ? 2.1 : -1.3}
           icon={IndianRupee}
           delay={0}
         />
         <KpiCard
-          title="Total Trips"
-          value={156}
+          title="Active Trips"
+          value={activeTripCount || kpis.activeTrips.value}
           format="raw"
-          change={8.2}
+          change={kpis.activeTrips.trend === 'up' ? 8.2 : -3.5}
           icon={MapPin}
           delay={0.1}
         />
         <KpiCard
           title="Drivers Online"
-          value={18}
+          value={kpis.activeDrivers.value}
           format="raw"
-          change={-2.1}
+          change={kpis.activeDrivers.trend === 'up' ? 3.4 : -2.1}
           changeLabel="vs yesterday"
           icon={Users}
           delay={0.2}
         />
         <KpiCard
-          title="Vehicles Active"
-          value={21}
+          title="Fleet Health"
+          value={kpis.fleetHealth.value}
           format="raw"
-          change={5.0}
+          change={kpis.fleetHealth.trend === 'up' ? 1.2 : -0.8}
           icon={Car}
           delay={0.3}
         />
@@ -414,9 +419,9 @@ export default function DashboardPage() {
             </div>
             <div className="space-y-3">
               {[
-                { label: 'Active Drivers', value: 18, total: 30, color: 'bg-emerald-500' },
-                { label: 'Vehicles On Road', value: 15, total: 25, color: 'bg-blue-500' },
-                { label: 'Trips In Progress', value: 12, total: 156, color: 'bg-amber-500' },
+                { label: 'Active Drivers', value: kpis.activeDrivers.value, total: 30, color: 'bg-emerald-500' },
+                { label: 'Fleet Health', value: kpis.fleetHealth.value, total: 100, color: 'bg-blue-500' },
+                { label: 'Trips In Progress', value: activeTripCount || kpis.activeTrips.value, total: 60, color: 'bg-amber-500' },
               ].map((stat) => (
                 <div key={stat.label}>
                   <div className="flex items-center justify-between mb-1">

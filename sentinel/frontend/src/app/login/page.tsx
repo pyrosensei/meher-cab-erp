@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { setToken } from "@/lib/auth";
-import { Shield, Loader2, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Loader2, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function LoginPage() {
@@ -56,11 +56,11 @@ export default function LoginPage() {
         className="w-full max-w-md"
       >
         <div className="flex flex-col items-center mb-8">
-          <div className="h-12 w-12 bg-foreground rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-            <Shield className="h-6 w-6 text-background" />
+          <div className="h-14 w-14 rounded-2xl overflow-hidden mb-4 shadow-lg bg-white border border-border p-1">
+            <img src="/logo.png" alt="Meher Cabs" className="h-full w-full object-contain" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Sentinel</h1>
-          <p className="text-sm text-muted-foreground mt-1">Real-time Telemetry Assistant</p>
+          <h1 className="text-2xl font-bold tracking-tight">Meher Cabs</h1>
+          <p className="text-sm text-muted-foreground mt-1">Fleet Intelligence Portal</p>
         </div>
 
         <Card className="border-border/50 shadow-xl">

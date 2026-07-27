@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { fadeUp, staggerContainer, staggerItem } from '@/lib/animations'
 import { PageHeader } from '@/components/shared/page-header'
 import { StatusBadge } from '@/components/shared/status-badge'
-import { vehicles, Vehicle } from '@/data/vehicles'
+import { vehicles as vehiclesData, Vehicle } from '@/data/vehicles'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -16,6 +16,7 @@ import {
   User, Car, Clock, AlertCircle 
 } from 'lucide-react'
 import { cn, formatNumber } from '@/lib/utils'
+import { useLiveTracking } from '@/hooks/useLiveTracking'
 
 import 'leaflet/dist/leaflet.css'
 
@@ -44,6 +45,8 @@ export default function TrackingPage() {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
   const [mounted, setMounted] = useState(false)
   const [L, setL] = useState<any>(null)
+
+  const { vehicles, lastUpdate, activeVehicles } = useLiveTracking(vehiclesData)
 
   useEffect(() => {
     setMounted(true)
@@ -111,6 +114,11 @@ export default function TrackingPage() {
                   {maintCount} In Shop
                </Badge>
             </div>
+
+            <div className="flex items-center justify-center gap-1.5 mt-3 text-[10px] font-medium text-[var(--text-secondary)]">
+              <Clock className="h-3 w-3" />
+              <span>Last updated: {Math.floor((Date.now() - lastUpdate) / 1000)}s ago</span>
+            </div>
           </div>
 
           <ScrollArea className="flex-1">
@@ -172,7 +180,7 @@ export default function TrackingPage() {
                 
                 return (
                   <Marker 
-                    key={vehicle.id} 
+                    key={vehicle.id + '-' + Math.floor(lastUpdate/3000)}
                     position={[vehicle.location.lat, vehicle.location.lng]}
                     icon={getCustomIcon(isSelected)}
                     eventHandlers={{
